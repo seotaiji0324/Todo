@@ -6,6 +6,7 @@ export type ChatGPTUser = {
   displayName: string;
   email: string;
   fullName: string | null;
+  devMemberUsername?: string;
 };
 
 const USER_ID_HEADER = "oai-authenticated-user-id";
@@ -18,6 +19,7 @@ const SIGN_IN_PATH = "/signin-with-chatgpt";
 const SIGN_OUT_PATH = "/signout-with-chatgpt";
 const CALLBACK_PATH = "/callback";
 const DEV_SESSION_COOKIE = "haru-dev-admin";
+const DEV_MEMBER_USERNAME = "seotaiji0324";
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const requestHeaders = await headers();
@@ -27,15 +29,17 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
     if (process.env.NODE_ENV !== "development") return null;
 
     const cookieStore = await cookies();
-    if (cookieStore.get(DEV_SESSION_COOKIE)?.value !== "seotaiji0324") {
+    const devMemberUsername = cookieStore.get(DEV_SESSION_COOKIE)?.value;
+    if (devMemberUsername !== DEV_MEMBER_USERNAME) {
       return null;
     }
 
     return {
-      userId: "local-admin-hyunho76",
-      displayName: "서태지",
-      email: "hyunho76.seo@miracom-inc.com",
-      fullName: "서태지",
+      userId: `local-dev:${devMemberUsername}`,
+      displayName: devMemberUsername,
+      email: `${devMemberUsername}@localhost.invalid`,
+      fullName: null,
+      devMemberUsername,
     };
   }
 

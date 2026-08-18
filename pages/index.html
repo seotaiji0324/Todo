@@ -192,6 +192,7 @@
 
       .primary,
       .secondary,
+      .edit,
       .danger,
       .filter {
         border: 0;
@@ -222,6 +223,54 @@
         margin: 0.8rem 0 0;
         color: #9e3b32;
         font-size: 0.88rem;
+      }
+
+      .admin-panel {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+
+      .admin-block {
+        padding: 1rem;
+        background: #f8f5ee;
+        border: 1px solid var(--line);
+        border-radius: 1rem;
+      }
+
+      .admin-block h3 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .admin-block > p {
+        margin: 0.35rem 0 0.85rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.55;
+      }
+
+      .admin-form {
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .admin-form-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 7rem 7rem;
+        gap: 0.55rem;
+      }
+
+      .admin-form-actions,
+      .task-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      .admin-form .message {
+        margin: 0;
       }
 
       .workspace {
@@ -338,6 +387,13 @@
         background: #fff0ed;
       }
 
+      .edit {
+        flex: 0 0 auto;
+        padding: 0.5rem 0.7rem;
+        color: var(--green);
+        background: var(--green-light);
+      }
+
       .empty {
         padding: 3rem 1rem;
         color: var(--muted);
@@ -368,6 +424,10 @@
         .task-form .primary {
           grid-column: 1 / -1;
         }
+
+        .admin-panel {
+          grid-template-columns: 1fr;
+        }
       }
 
       @media (max-width: 520px) {
@@ -391,6 +451,10 @@
 
         .task-row {
           align-items: flex-start;
+        }
+
+        .admin-form-row {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -478,6 +542,72 @@
           </form>
           <p class="message" id="task-message" aria-live="polite"></p>
 
+          <section class="admin-panel" id="admin-panel" aria-label="관리자 도구" hidden>
+            <div class="admin-block">
+              <h3>일정 수정</h3>
+              <p id="edit-task-help">일정의 수정 버튼을 선택해 제목, 분류와 시간을 변경하세요.</p>
+              <form class="admin-form" id="edit-task-form" hidden>
+                <div class="admin-form-row">
+                  <input
+                    id="edit-task-title"
+                    maxlength="120"
+                    placeholder="일정명"
+                    aria-label="수정할 일정명"
+                    required
+                  />
+                  <select id="edit-task-category" aria-label="수정할 카테고리">
+                    <option>개인</option>
+                    <option>업무</option>
+                    <option>건강</option>
+                    <option>공부</option>
+                  </select>
+                  <input id="edit-task-time" type="time" aria-label="수정할 예정 시간" />
+                </div>
+                <div class="admin-form-actions">
+                  <button class="primary" type="submit">수정 저장</button>
+                  <button class="secondary" id="cancel-task-edit" type="button">취소</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="admin-block">
+              <h3>관리자 비밀번호 변경</h3>
+              <p>현재 비밀번호를 확인한 뒤 12자 이상의 새 비밀번호로 변경합니다.</p>
+              <form class="admin-form" id="password-form">
+                <input
+                  id="current-password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="현재 비밀번호"
+                  aria-label="현재 비밀번호"
+                  required
+                />
+                <input
+                  id="new-password"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="12"
+                  maxlength="128"
+                  placeholder="새 비밀번호"
+                  aria-label="새 비밀번호"
+                  required
+                />
+                <input
+                  id="confirm-password"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="12"
+                  maxlength="128"
+                  placeholder="새 비밀번호 확인"
+                  aria-label="새 비밀번호 확인"
+                  required
+                />
+                <button class="primary" type="submit">비밀번호 변경</button>
+                <p class="message" id="password-message" aria-live="polite"></p>
+              </form>
+            </div>
+          </section>
+
           <div class="filters" aria-label="일정 필터">
             <button class="filter active" data-filter="all" type="button">전체</button>
             <button class="filter" data-filter="open" type="button">할 일</button>
@@ -493,11 +623,14 @@
     <script>
       const API_URL =
         "https://haru-todo-app.seotaiji0324.workers.dev/api/tasks";
+      const PASSWORD_API_URL =
+        "https://haru-todo-app.seotaiji0324.workers.dev/api/member-password";
       const SESSION_KEY = "haru-admin-basic";
       let credentials = sessionStorage.getItem(SESSION_KEY);
       let tasks = [];
       let member = null;
       let filter = "all";
+      let editingTaskId = null;
 
       const loginView = document.querySelector("#login-view");
       const loginForm = document.querySelector("#login-form");
@@ -508,6 +641,11 @@
       const taskMessage = document.querySelector("#task-message");
       const taskList = document.querySelector("#task-list");
       const empty = document.querySelector("#empty");
+      const adminPanel = document.querySelector("#admin-panel");
+      const editTaskForm = document.querySelector("#edit-task-form");
+      const editTaskHelp = document.querySelector("#edit-task-help");
+      const passwordForm = document.querySelector("#password-form");
+      const passwordMessage = document.querySelector("#password-message");
 
       function encodeCredentials(username, password) {
         const bytes = new TextEncoder().encode(`${username}:${password}`);
@@ -562,8 +700,14 @@
         credentials = null;
         member = null;
         tasks = [];
+        editingTaskId = null;
         sessionStorage.removeItem(SESSION_KEY);
         workspace.hidden = true;
+        adminPanel.hidden = true;
+        editTaskForm.hidden = true;
+        editTaskHelp.hidden = false;
+        passwordForm.reset();
+        passwordMessage.textContent = "";
         loginView.hidden = false;
         logoutButton.hidden = true;
         document.querySelector("#session-copy").style.display = "none";
@@ -585,6 +729,7 @@
         document.querySelector("#session-copy").style.display = "block";
         document.querySelector("#member-name").textContent =
           `${member.displayName}님.`;
+        adminPanel.hidden = member.role !== "admin";
         taskMessage.textContent = "";
       }
 
@@ -635,12 +780,22 @@
         row.append(main);
 
         if (member?.role === "admin") {
+          const actions = document.createElement("div");
+          actions.className = "task-actions";
+          const edit = document.createElement("button");
+          edit.className = "edit";
+          edit.type = "button";
+          edit.textContent = "수정";
+          edit.setAttribute("aria-label", `${task.title} 수정`);
+          edit.addEventListener("click", () => startTaskEdit(task));
           const remove = document.createElement("button");
           remove.className = "danger";
           remove.type = "button";
           remove.textContent = "삭제";
+          remove.setAttribute("aria-label", `${task.title} 삭제`);
           remove.addEventListener("click", () => deleteTask(task.id));
-          row.append(remove);
+          actions.append(edit, remove);
+          row.append(actions);
         }
         return row;
       }
@@ -675,6 +830,91 @@
         }
       }
 
+      function startTaskEdit(task) {
+        editingTaskId = task.id;
+        document.querySelector("#edit-task-title").value = task.title;
+        document.querySelector("#edit-task-category").value = task.category;
+        document.querySelector("#edit-task-time").value = task.dueTime || "";
+        editTaskHelp.hidden = true;
+        editTaskForm.hidden = false;
+        document.querySelector("#edit-task-title").focus();
+      }
+
+      function cancelTaskEdit() {
+        editingTaskId = null;
+        editTaskForm.reset();
+        editTaskForm.hidden = true;
+        editTaskHelp.hidden = false;
+      }
+
+      async function saveTaskEdit(event) {
+        event.preventDefault();
+        if (!editingTaskId) return;
+
+        taskMessage.textContent = "수정 중입니다…";
+        try {
+          const result = await api("PATCH", {
+            id: editingTaskId,
+            title: document.querySelector("#edit-task-title").value,
+            category: document.querySelector("#edit-task-category").value,
+            dueTime: document.querySelector("#edit-task-time").value || null,
+          });
+          tasks = tasks.map((task) =>
+            task.id === editingTaskId ? result.task : task,
+          );
+          cancelTaskEdit();
+          taskMessage.textContent = "일정을 수정했습니다.";
+          renderTasks();
+        } catch (error) {
+          taskMessage.textContent = error.message;
+        }
+      }
+
+      async function changePassword(event) {
+        event.preventDefault();
+        passwordMessage.textContent = "비밀번호를 변경하는 중입니다…";
+        const currentPassword = document.querySelector("#current-password").value;
+        const newPassword = document.querySelector("#new-password").value;
+        const confirmPassword = document.querySelector("#confirm-password").value;
+
+        if (newPassword !== confirmPassword) {
+          passwordMessage.textContent = "새 비밀번호 확인이 일치하지 않습니다.";
+          return;
+        }
+
+        const nextCredentials = encodeCredentials(member.username, newPassword);
+        const currentCredentials = encodeCredentials(
+          member.username,
+          currentPassword,
+        );
+
+        try {
+          const response = await fetch(PASSWORD_API_URL, {
+            method: "PATCH",
+            headers: {
+              Authorization: `Basic ${currentCredentials}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ newPassword }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const error = new Error(
+              data.error || "비밀번호를 변경하지 못했습니다.",
+            );
+            error.status = response.status;
+            throw error;
+          }
+
+          credentials = nextCredentials;
+          sessionStorage.setItem(SESSION_KEY, credentials);
+          passwordForm.reset();
+          passwordMessage.textContent = "비밀번호가 변경되었습니다.";
+        } catch (error) {
+          passwordMessage.textContent = error.message;
+        }
+      }
+
       async function deleteTask(id) {
         if (!window.confirm("이 일정을 삭제할까요?")) return;
         taskMessage.textContent = "";
@@ -691,6 +931,11 @@
       loginForm.addEventListener("submit", signIn);
       logoutButton.addEventListener("click", signOut);
       taskForm.addEventListener("submit", addTask);
+      editTaskForm.addEventListener("submit", saveTaskEdit);
+      document
+        .querySelector("#cancel-task-edit")
+        .addEventListener("click", cancelTaskEdit);
+      passwordForm.addEventListener("submit", changePassword);
       document.querySelectorAll(".filter").forEach((button) => {
         button.addEventListener("click", () => {
           filter = button.dataset.filter;

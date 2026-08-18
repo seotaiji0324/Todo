@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "./index";
+import { verifyPassword } from "./password-crypto";
 import { members, type Member } from "./schema";
 
 export async function authorizeBasicMember(
@@ -25,11 +26,12 @@ export async function authorizeBasicMember(
     return null;
   }
 
-  const actualHash = await derivePasswordHash(
+  const authorized = await verifyPassword(
     credentials.password,
     member.passwordSalt,
+    member.passwordHash,
   );
-  return constantTimeEqual(actualHash, member.passwordHash) ? member : null;
+  return authorized ? member : null;
 }
 
 function readBasicCredentials(
@@ -52,39 +54,7 @@ function readBasicCredentials(
   }
 }
 
-async function derivePasswordHash(
-  password: string,
-  salt: string,
-): Promise<string> {
-  const passwordBytes = new TextEncoder().encode(password);
-  const saltBytes = base64ToBytes(salt);
-  const input = new Uint8Array(saltBytes.length + passwordBytes.length);
-  input.set(saltBytes);
-  input.set(passwordBytes, saltBytes.length);
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    input,
-  );
-  return bytesToBase64(new Uint8Array(hash));
-}
-
 function base64ToBytes(value: string): Uint8Array {
   const decoded = atob(value);
   return Uint8Array.from(decoded, (character) => character.charCodeAt(0));
-}
-
-function bytesToBase64(value: Uint8Array): string {
-  let binary = "";
-  for (const byte of value) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function constantTimeEqual(actual: string, expected: string): boolean {
-  if (actual.length !== expected.length) return false;
-
-  let difference = 0;
-  for (let index = 0; index < actual.length; index += 1) {
-    difference |= actual.charCodeAt(index) ^ expected.charCodeAt(index);
-  }
-  return difference === 0;
 }

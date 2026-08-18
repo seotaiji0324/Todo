@@ -6,8 +6,19 @@ import { members, type Member } from "./schema";
 export async function authorizeMember(
   user: ChatGPTUser,
 ): Promise<Member | null> {
-  const email = user.email.trim().toLowerCase();
   const db = getDb();
+
+  if (process.env.NODE_ENV === "development" && user.devMemberUsername) {
+    const [devMember] = await db
+      .select()
+      .from(members)
+      .where(eq(members.username, user.devMemberUsername))
+      .limit(1);
+
+    return devMember?.status === "active" ? devMember : null;
+  }
+
+  const email = user.email.trim().toLowerCase();
   const rows = await db
     .select()
     .from(members)
