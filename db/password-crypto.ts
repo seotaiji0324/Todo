@@ -1,5 +1,6 @@
 const PBKDF2_ALGORITHM = "pbkdf2-sha256";
-const PBKDF2_ITERATIONS = 600_000;
+// Cloudflare workerd rejects PBKDF2 requests above 100,000 iterations.
+const PBKDF2_ITERATIONS = 100_000;
 const PASSWORD_HASH_BYTES = 32;
 const PASSWORD_SALT_BYTES = 16;
 
@@ -31,7 +32,10 @@ export async function verifyPassword(
 
     if (algorithm === PBKDF2_ALGORITHM && iterationsValue && encodedHash) {
       const iterations = Number(iterationsValue);
-      if (!Number.isSafeInteger(iterations) || iterations < 100_000) {
+      if (
+        !Number.isSafeInteger(iterations) ||
+        iterations !== PBKDF2_ITERATIONS
+      ) {
         return false;
       }
 
