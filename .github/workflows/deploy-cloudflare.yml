@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - codex/library-todo-cloudflare
+      - codex/github-pages-deploy
   workflow_dispatch:
 
 permissions:
