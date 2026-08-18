@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Today's 하루</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
+      }
+
+      body {
+        display: grid;
+        min-height: 100vh;
+        margin: 0;
+        place-items: center;
+        color: #252018;
+        background:
+          linear-gradient(rgb(250 247 240 / 78%), rgb(250 247 240 / 78%)),
+          url("https://haru-todo-app.seotaiji0324.workers.dev/haru-library.png")
+            center / cover fixed;
+      }
+
+      main {
+        width: min(32rem, calc(100% - 3rem));
+        padding: 2.5rem;
+        text-align: center;
+        background: rgb(255 255 255 / 88%);
+        border: 1px solid rgb(83 66 43 / 18%);
+        border-radius: 1.5rem;
+        box-shadow: 0 1.5rem 4rem rgb(46 35 22 / 20%);
+        backdrop-filter: blur(12px);
+      }
+
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(2rem, 7vw, 2.5rem);
+      }
+
+      p {
+        margin: 0 0 1.5rem;
+        color: #675c4c;
+        line-height: 1.7;
+      }
+
+      a {
+        display: inline-block;
+        padding: 0.85rem 1.25rem;
+        color: white;
+        font-weight: 700;
+        text-decoration: none;
+        background: #315542;
+        border-radius: 999px;
+      }
+    </style>
+    <script>
+      const destination = new URL(
+        "https://haru-todo-app.seotaiji0324.workers.dev/",
+      );
+      destination.search = window.location.search;
+      destination.hash = window.location.hash;
+      window.location.replace(destination.href);
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>Today's 하루</h1>
+      <p>클라우드 일정 관리 앱으로 이동하고 있습니다.</p>
+      <a href="https://haru-todo-app.seotaiji0324.workers.dev/">앱 열기</a>
+    </main>
+  </body>
+</html>
