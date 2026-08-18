@@ -2,8 +2,6 @@ import { eq } from "drizzle-orm";
 import { getDb } from "./index";
 import { members, type Member } from "./schema";
 
-const PBKDF2_ITERATIONS = 210_000;
-
 export async function authorizeBasicMember(
   request: Request,
 ): Promise<Member | null> {
@@ -58,22 +56,14 @@ async function derivePasswordHash(
   password: string,
   salt: string,
 ): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"],
-  );
-  const hash = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: base64ToBytes(salt),
-      iterations: PBKDF2_ITERATIONS,
-      hash: "SHA-256",
-    },
-    key,
-    256,
+  const passwordBytes = new TextEncoder().encode(password);
+  const saltBytes = base64ToBytes(salt);
+  const input = new Uint8Array(saltBytes.length + passwordBytes.length);
+  input.set(saltBytes);
+  input.set(passwordBytes, saltBytes.length);
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    input,
   );
   return bytesToBase64(new Uint8Array(hash));
 }
