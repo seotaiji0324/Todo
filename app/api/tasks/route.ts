@@ -1,17 +1,27 @@
 import { and, desc, eq, sql } from "drizzle-orm";
+import { authorizeBasicMember } from "../../../db/basic-auth";
 import { authorizeMember } from "../../../db/members";
 import type { Member } from "../../../db/schema";
-import {
-  getChatGPTUser,
-  type ChatGPTUser,
-} from "../../chatgpt-auth";
+import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { tasks } from "../../../db/schema";
 
 const CATEGORIES = new Set(["개인", "업무", "건강", "공부"]);
+const ALLOWED_ORIGINS = new Set([
+  "https://seotaiji0324.github.io",
+  "http://localhost:3002",
+]);
+
+type Identity = {
+  member: Member;
+  legacyOwnerId: string | null;
+};
 
 function unauthorized() {
-  return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  return Response.json(
+    { error: "아이디 또는 비밀번호를 확인해 주세요." },
+    { status: 401 },
+  );
 }
 
 function forbidden() {
@@ -21,17 +31,21 @@ function forbidden() {
   );
 }
 
-async function authorizeRequest(): Promise<
-  | { user: ChatGPTUser; member: Member }
-  | { response: Response }
-> {
+async function authorizeRequest(
+  request: Request,
+): Promise<Identity | { response: Response }> {
+  const basicMember = await authorizeBasicMember(request);
+  if (basicMember) {
+    return { member: basicMember, legacyOwnerId: null };
+  }
+
   const user = await getChatGPTUser();
   if (!user) return { response: unauthorized() };
 
   const member = await authorizeMember(user);
   if (!member) return { response: forbidden() };
 
-  return { user, member };
+  return { member, legacyOwnerId: user.userId };
 }
 
 function databaseError(error: unknown) {
@@ -60,16 +74,39 @@ function databaseError(error: unknown) {
   );
 }
 
-export async function GET() {
+function withCors(request: Request, response: Response): Response {
+  const origin = request.headers.get("origin");
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return response;
+
+  const headers = new Headers(response.headers);
+  headers.set("Access-Control-Allow-Origin", origin);
+  headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PATCH, DELETE, OPTIONS",
+  );
+  headers.set("Access-Control-Max-Age", "86400");
+  headers.append("Vary", "Origin");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function handleGet(request: Request): Promise<Response> {
   try {
-    const identity = await authorizeRequest();
+    const identity = await authorizeRequest(request);
     if ("response" in identity) return identity.response;
 
     const db = getDb();
-    await db
-      .update(tasks)
-      .set({ ownerId: identity.member.id })
-      .where(eq(tasks.ownerId, identity.user.userId));
+    if (identity.legacyOwnerId) {
+      await db
+        .update(tasks)
+        .set({ ownerId: identity.member.id })
+        .where(eq(tasks.ownerId, identity.legacyOwnerId));
+    }
 
     const rows = await db
       .select()
@@ -90,9 +127,9 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePost(request: Request): Promise<Response> {
   try {
-    const identity = await authorizeRequest();
+    const identity = await authorizeRequest(request);
     if ("response" in identity) return identity.response;
 
     const payload = (await request.json()) as {
@@ -106,7 +143,8 @@ export async function POST(request: Request) {
         ? payload.category
         : "개인";
     const dueTime =
-      typeof payload.dueTime === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(payload.dueTime)
+      typeof payload.dueTime === "string" &&
+      /^([01]\d|2[0-3]):[0-5]\d$/.test(payload.dueTime)
         ? payload.dueTime
         : null;
 
@@ -134,9 +172,9 @@ export async function POST(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+async function handlePatch(request: Request): Promise<Response> {
   try {
-    const identity = await authorizeRequest();
+    const identity = await authorizeRequest(request);
     if ("response" in identity) return identity.response;
 
     const payload = (await request.json()) as {
@@ -171,9 +209,9 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+async function handleDelete(request: Request): Promise<Response> {
   try {
-    const identity = await authorizeRequest();
+    const identity = await authorizeRequest(request);
     if ("response" in identity) return identity.response;
     if (identity.member.role !== "admin") {
       return Response.json(
@@ -205,4 +243,28 @@ export async function DELETE(request: Request) {
   } catch (error) {
     return databaseError(error);
   }
+}
+
+export function OPTIONS(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+    return new Response(null, { status: 403 });
+  }
+  return withCors(request, new Response(null, { status: 204 }));
+}
+
+export async function GET(request: Request) {
+  return withCors(request, await handleGet(request));
+}
+
+export async function POST(request: Request) {
+  return withCors(request, await handlePost(request));
+}
+
+export async function PATCH(request: Request) {
+  return withCors(request, await handlePatch(request));
+}
+
+export async function DELETE(request: Request) {
+  return withCors(request, await handleDelete(request));
 }

@@ -15,6 +15,8 @@ export const members = sqliteTable(
     username: text("username").notNull(),
     displayName: text("display_name").notNull(),
     email: text("email").notNull(),
+    passwordHash: text("password_hash"),
+    passwordSalt: text("password_salt"),
     role: text("role").notNull().default("member"),
     status: text("status").notNull().default("active"),
     lastLoginAt: text("last_login_at"),
