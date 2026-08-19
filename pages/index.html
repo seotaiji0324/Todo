@@ -18,7 +18,7 @@
             <img class="calendar-mark" src="./dashboard-calendar-mark.png" width="72" height="72" alt="분홍색 탁상 달력 일러스트" />
             <div>
               <p class="header-kicker">TODAY'S HARU · <span id="today-date"></span></p>
-              <h1><span id="current-year"></span> 일정 관리</h1>
+              <h1><span id="current-period"></span> 일정 관리</h1>
             </div>
           </div>
           <div class="account">
@@ -175,6 +175,7 @@
       let calendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       let saving = false;
       const CURRENT_YEAR = new Intl.DateTimeFormat("en-US", { year:"numeric", timeZone:"Asia/Seoul" }).format(new Date());
+      const CURRENT_PERIOD = new Intl.DateTimeFormat("ko-KR", { year:"numeric", month:"long", timeZone:"Asia/Seoul" }).format(new Date());
       const CURRENT_DATE = dateValue();
 
       const loginDialog = document.querySelector("#login-dialog");
@@ -310,7 +311,7 @@
           number.textContent = day;
           const events = document.createElement("div");
           events.className = "calendar-events";
-          (tasksByDay[day] || []).slice(0, 2).forEach((task) => {
+          (tasksByDay[day] || []).forEach((task) => {
             const button = document.createElement("button");
             button.className = "calendar-event " + (categoryClass[task.category] || "mint") + (task.completed ? " done" : "");
             button.type = "button";
@@ -541,8 +542,8 @@
         }
       }
 
-      document.title = CURRENT_YEAR + " 일정 관리";
-      document.querySelector("#current-year").textContent = CURRENT_YEAR;
+      document.title = CURRENT_PERIOD + " 일정 관리";
+      document.querySelector("#current-period").textContent = CURRENT_PERIOD;
       document.querySelector("#overview-year").textContent = CURRENT_YEAR;
       document.querySelector("#today-date").textContent = displayDate();
       document.querySelector("#task-date").value = CURRENT_DATE;

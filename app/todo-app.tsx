@@ -87,6 +87,14 @@ function displayYear() {
   }).format(new Date());
 }
 
+function displayCurrentPeriod() {
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "long",
+    timeZone: "Asia/Seoul",
+  }).format(new Date());
+}
+
 function monthLabel(date: Date) {
   return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", timeZone: "Asia/Seoul" }).format(date);
 }
@@ -268,7 +276,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
             <Image className="calendar-mark" src="/dashboard-calendar-mark.png" alt="분홍색 탁상 달력 일러스트" width={72} height={72} priority />
             <div>
               <p className="header-kicker">TODAY&apos;S HARU · {displayDate()}</p>
-              <h1>{displayYear()} 일정 관리</h1>
+              <h1>{displayCurrentPeriod()} 일정 관리</h1>
             </div>
           </div>
           <div className="account">
@@ -326,7 +334,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
               {calendarCells.map((day, index) => (
                 <div className={`calendar-cell ${day === new Date().getDate() && calendarDate.getMonth() === new Date().getMonth() ? "today" : ""}`} key={index}>
                   {day && <><span className="day-number">{day}</span><div className="calendar-events">
-                    {(tasksByDay[day] ?? []).slice(0, 2).map((task) => (
+                    {(tasksByDay[day] ?? []).map((task) => (
                       <button className={`calendar-event ${categoryClass[task.category] ?? "mint"} ${task.completed ? "done" : ""}`} key={task.id} type="button" onClick={() => void toggleTask(task)} title={`${task.title} · ${displayTime(task.dueTime)}`}>{task.title}</button>
                     ))}
                   </div></>}

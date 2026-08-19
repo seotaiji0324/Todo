@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render(path = "/") {
@@ -22,19 +23,25 @@ async function render(path = "/") {
   );
 }
 
-test("renders the complete current-year dashboard task experience", async () => {
+test("renders the complete current-month dashboard task experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<html lang="ko">/);
-  assert.match(html, /<title>\d{4} 일정 관리<\/title>/);
+  assert.match(html, /<title>\d{4}년 \d{1,2}월 일정 관리<\/title>/);
   assert.match(html, /새 일정을 입력하세요/);
   assert.match(html, /id="task-date"[^>]*type="date"/);
   assert.match(html, /할 일 연월일/);
   assert.match(html, /OPIc 1일차 완성/);
-  assert.match(html, /\d{4} 일정 관리/);
+  assert.match(html, /\d{4}년 \d{1,2}월 일정 관리/);
   assert.match(html, /미리보기 · 로그인/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
+});
+
+test("static Pages calendar renders every task registered for a date", async () => {
+  const source = await readFile(new URL("../pages/index.html", import.meta.url), "utf8");
+  assert.match(source, /\(tasksByDay\[day\] \|\| \[\]\)\.forEach/);
+  assert.doesNotMatch(source, /tasksByDay\[day\][^\n]*\.slice\(/);
 });

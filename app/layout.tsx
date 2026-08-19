@@ -19,11 +19,12 @@ export async function generateMetadata(): Promise<Metadata> {
     requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const protocol = requestHeaders.get("x-forwarded-proto") ?? "https";
   const image = host ? `${protocol}://${host}/og.png` : undefined;
-  const currentYear = new Intl.DateTimeFormat("en-US", {
+  const currentPeriod = new Intl.DateTimeFormat("ko-KR", {
     year: "numeric",
+    month: "long",
     timeZone: "Asia/Seoul",
   }).format(new Date());
-  const title = `${currentYear} 일정 관리`;
+  const title = `${currentPeriod} 일정 관리`;
   const description = "월간 캘린더와 Daily Plan으로 오늘의 일정을 한눈에 관리하세요.";
 
   return {
