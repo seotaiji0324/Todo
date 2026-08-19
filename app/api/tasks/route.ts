@@ -1,12 +1,16 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { authorizeBasicMember } from "../../../db/basic-auth";
+import {
+  queryExternalCloudflareD1,
+  usesExternalCloudflareD1,
+} from "../../../db/cloudflare-d1-http";
 import { authorizeMember } from "../../../db/members";
 import type { Member } from "../../../db/schema";
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { tasks } from "../../../db/schema";
 
-const CATEGORIES = new Set(["개인", "업무", "건강", "공부"]);
+const CATEGORIES = new Set(["??", "??", "??", "??"]);
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const ALLOWED_ORIGINS = new Set([
   "https://seotaiji0324.github.io",
@@ -18,16 +22,45 @@ type Identity = {
   legacyOwnerId: string | null;
 };
 
+type ExternalTaskRow = {
+  id: string;
+  owner_id: string;
+  title: string;
+  category: string;
+  due_date: string | null;
+  due_time: string | null;
+  completed: number;
+  created_at: string;
+  updated_at: string;
+};
+
+const EXTERNAL_TASK_COLUMNS =
+  "id, owner_id, title, category, due_date, due_time, completed, created_at, updated_at";
+
+function mapExternalTask(row: ExternalTaskRow) {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    title: row.title,
+    category: row.category,
+    dueDate: row.due_date,
+    dueTime: row.due_time,
+    completed: Boolean(row.completed),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function unauthorized() {
   return Response.json(
-    { error: "아이디 또는 비밀번호를 확인해 주세요." },
+    { error: "??? ?? ????? ??? ???." },
     { status: 401 },
   );
 }
 
 function forbidden() {
   return Response.json(
-    { error: "등록된 멤버만 이용할 수 있습니다." },
+    { error: "??? ??? ??? ? ????." },
     { status: 403 },
   );
 }
@@ -74,14 +107,14 @@ function databaseError(error: unknown) {
     combined.includes('from "members"')
   ) {
     return Response.json(
-      { error: "데이터베이스 준비가 아직 끝나지 않았습니다." },
+      { error: "?????? ??? ?? ??? ?????." },
       { status: 503 },
     );
   }
 
   console.error("Task database error", error);
   return Response.json(
-    { error: "할 일을 처리하는 중 문제가 발생했습니다." },
+    { error: "? ?? ???? ? ??? ??????." },
     { status: 500 },
   );
 }
@@ -111,6 +144,28 @@ async function handleGet(request: Request): Promise<Response> {
   try {
     const identity = await authorizeRequest(request);
     if ("response" in identity) return identity.response;
+
+    if (usesExternalCloudflareD1()) {
+      if (identity.legacyOwnerId) {
+        await queryExternalCloudflareD1(
+          "UPDATE tasks SET owner_id = ?, updated_at = CURRENT_TIMESTAMP WHERE owner_id = ?",
+          [identity.member.id, identity.legacyOwnerId],
+        );
+      }
+      const rows = await queryExternalCloudflareD1<ExternalTaskRow>(
+        `SELECT ${EXTERNAL_TASK_COLUMNS} FROM tasks WHERE owner_id = ? ORDER BY completed, created_at DESC`,
+        [identity.member.id],
+      );
+
+      return Response.json({
+        tasks: rows.map(mapExternalTask),
+        member: {
+          username: identity.member.username,
+          displayName: identity.member.displayName,
+          role: identity.member.role,
+        },
+      });
+    }
 
     const db = getDb();
     if (identity.legacyOwnerId) {
@@ -154,7 +209,7 @@ async function handlePost(request: Request): Promise<Response> {
     const category =
       typeof payload.category === "string" && CATEGORIES.has(payload.category)
         ? payload.category
-        : "개인";
+        : "??";
     const dueDate = isValidDate(payload.dueDate) ? payload.dueDate : null;
     const dueTime =
       typeof payload.dueTime === "string" &&
@@ -164,16 +219,28 @@ async function handlePost(request: Request): Promise<Response> {
 
     if (!title || title.length > 120) {
       return Response.json(
-        { error: "할 일은 1자 이상 120자 이하로 입력해 주세요." },
+        { error: "? ?? 1? ?? 120? ??? ??? ???." },
         { status: 400 },
       );
     }
 
     if (!dueDate) {
       return Response.json(
-        { error: "일정의 연월일을 선택해 주세요." },
+        { error: "??? ???? ??? ???." },
         { status: 400 },
       );
+    }
+
+    if (usesExternalCloudflareD1()) {
+      const id = crypto.randomUUID();
+      const [task] = await queryExternalCloudflareD1<ExternalTaskRow>(
+        `INSERT INTO tasks (id, owner_id, title, category, due_date, due_time) VALUES (?, ?, ?, ?, ?, ?) RETURNING ${EXTERNAL_TASK_COLUMNS}`,
+        [id, identity.member.id, title, category, dueDate, dueTime],
+      );
+      if (!task) {
+        throw new Error("External Cloudflare D1 did not return the new task.");
+      }
+      return Response.json({ task: mapExternalTask(task) }, { status: 201 });
     }
 
     const [task] = await getDb()
@@ -208,7 +275,7 @@ async function handlePatch(request: Request): Promise<Response> {
       dueTime?: unknown;
     };
     if (typeof payload.id !== "string") {
-      return Response.json({ error: "잘못된 요청입니다." }, { status: 400 });
+      return Response.json({ error: "??? ?????." }, { status: 400 });
     }
 
     const updates: {
@@ -226,14 +293,14 @@ async function handlePatch(request: Request): Promise<Response> {
 
     if (editsSchedule && identity.member.role !== "admin") {
       return Response.json(
-        { error: "관리자만 일정을 수정할 수 있습니다." },
+        { error: "???? ??? ??? ? ????." },
         { status: 403 },
       );
     }
 
     if ("completed" in payload) {
       if (typeof payload.completed !== "boolean") {
-        return Response.json({ error: "잘못된 요청입니다." }, { status: 400 });
+        return Response.json({ error: "??? ?????." }, { status: 400 });
       }
       updates.completed = payload.completed;
     }
@@ -243,7 +310,7 @@ async function handlePatch(request: Request): Promise<Response> {
         typeof payload.title === "string" ? payload.title.trim() : "";
       if (!title || title.length > 120) {
         return Response.json(
-          { error: "할 일은 1자 이상 120자 이하로 입력해 주세요." },
+          { error: "? ?? 1? ?? 120? ??? ??? ???." },
           { status: 400 },
         );
       }
@@ -256,7 +323,7 @@ async function handlePatch(request: Request): Promise<Response> {
         !CATEGORIES.has(payload.category)
       ) {
         return Response.json(
-          { error: "잘못된 분류입니다." },
+          { error: "??? ?????." },
           { status: 400 },
         );
       }
@@ -266,7 +333,7 @@ async function handlePatch(request: Request): Promise<Response> {
     if ("dueDate" in payload) {
       if (!isValidDate(payload.dueDate)) {
         return Response.json(
-          { error: "올바른 연월일을 선택해 주세요." },
+          { error: "??? ???? ??? ???." },
           { status: 400 },
         );
       }
@@ -280,7 +347,7 @@ async function handlePatch(request: Request): Promise<Response> {
           !/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.dueTime))
       ) {
         return Response.json(
-          { error: "잘못된 시간입니다." },
+          { error: "??? ?????." },
           { status: 400 },
         );
       }
@@ -289,9 +356,48 @@ async function handlePatch(request: Request): Promise<Response> {
 
     if (Object.keys(updates).length === 0) {
       return Response.json(
-        { error: "수정할 내용이 없습니다." },
+        { error: "??? ??? ????." },
         { status: 400 },
       );
+    }
+
+    if (usesExternalCloudflareD1()) {
+      const assignments: string[] = [];
+      const params: Array<string | number | null> = [];
+      if (updates.completed !== undefined) {
+        assignments.push("completed = ?");
+        params.push(updates.completed ? 1 : 0);
+      }
+      if (updates.title !== undefined) {
+        assignments.push("title = ?");
+        params.push(updates.title);
+      }
+      if (updates.category !== undefined) {
+        assignments.push("category = ?");
+        params.push(updates.category);
+      }
+      if (updates.dueDate !== undefined) {
+        assignments.push("due_date = ?");
+        params.push(updates.dueDate);
+      }
+      if (updates.dueTime !== undefined) {
+        assignments.push("due_time = ?");
+        params.push(updates.dueTime);
+      }
+      assignments.push("updated_at = CURRENT_TIMESTAMP");
+      params.push(payload.id, identity.member.id);
+
+      const [task] = await queryExternalCloudflareD1<ExternalTaskRow>(
+        `UPDATE tasks SET ${assignments.join(", ")} WHERE id = ? AND owner_id = ? RETURNING ${EXTERNAL_TASK_COLUMNS}`,
+        params,
+      );
+      if (!task) {
+        return Response.json(
+          { error: "? ?? ?? ? ????." },
+          { status: 404 },
+        );
+      }
+      return Response.json({ task: mapExternalTask(task) });
     }
 
     const [task] = await getDb()
@@ -309,7 +415,7 @@ async function handlePatch(request: Request): Promise<Response> {
       .returning();
 
     if (!task) {
-      return Response.json({ error: "할 일을 찾을 수 없습니다." }, { status: 404 });
+      return Response.json({ error: "? ?? ?? ? ????." }, { status: 404 });
     }
 
     return Response.json({ task });
@@ -324,14 +430,28 @@ async function handleDelete(request: Request): Promise<Response> {
     if ("response" in identity) return identity.response;
     if (identity.member.role !== "admin") {
       return Response.json(
-        { error: "관리자만 할 일을 삭제할 수 있습니다." },
+        { error: "???? ? ?? ??? ? ????." },
         { status: 403 },
       );
     }
 
     const payload = (await request.json()) as { id?: unknown };
     if (typeof payload.id !== "string") {
-      return Response.json({ error: "잘못된 요청입니다." }, { status: 400 });
+      return Response.json({ error: "??? ?????." }, { status: 400 });
+    }
+
+    if (usesExternalCloudflareD1()) {
+      const [task] = await queryExternalCloudflareD1<{ id: string }>(
+        "DELETE FROM tasks WHERE id = ? AND owner_id = ? RETURNING id",
+        [payload.id, identity.member.id],
+      );
+      if (!task) {
+        return Response.json(
+          { error: "? ?? ?? ? ????." },
+          { status: 404 },
+        );
+      }
+      return Response.json({ deleted: true });
     }
 
     const [task] = await getDb()
@@ -345,7 +465,7 @@ async function handleDelete(request: Request): Promise<Response> {
       .returning();
 
     if (!task) {
-      return Response.json({ error: "할 일을 찾을 수 없습니다." }, { status: 404 });
+      return Response.json({ error: "? ?? ?? ? ????." }, { status: 404 });
     }
 
     return Response.json({ deleted: true });

@@ -1,0 +1,22 @@
+name: Sync source to Sites
+on:
+  push:
+    branches:
+      - codex/github-pages-deploy
+permissions:
+  contents: read
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push exact source to Sites
+        env:
+          SITES_SOURCE_TOKEN: ${{ secrets.SITES_SOURCE_TOKEN }}
+          SITES_SOURCE_REMOTE: https://git.chatgpt-team.site/b1493303-7617-416e-bbce-a68b3ddcd1c6/appgprj_6a83f5325c0881c291e6b5a160f3ec34.git
+        run: |
+          git -c "http.extraHeader=Authorization: Bearer $SITES_SOURCE_TOKEN" push --force "$SITES_SOURCE_REMOTE" HEAD:main
