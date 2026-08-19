@@ -87,13 +87,6 @@ async function responseError(response: Response, fallback: string) {
   }
 }
 
-function encodeBasicCredentials(username: string, password: string) {
-  const bytes = new TextEncoder().encode(`${username}:${password}`);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
 export function TodoApp({
   user,
   isLocalPreview,
@@ -111,15 +104,6 @@ export function TodoApp({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [member, setMember] = useState<AppMember | null>(null);
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editCategory, setEditCategory] = useState("개인");
-  const [editDueTime, setEditDueTime] = useState("");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordMessage, setPasswordMessage] = useState("");
-  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (isPreview) return;
@@ -246,8 +230,6 @@ export function TodoApp({
   }
 
   async function removeTask(task: Task) {
-    if (!window.confirm(`“${task.title}” 일정을 삭제할까요?`)) return;
-
     setTasks((current) => current.filter((item) => item.id !== task.id));
     if (isPreview) return;
 
@@ -259,100 +241,6 @@ export function TodoApp({
     if (!response.ok) {
       setTasks((current) => [task, ...current]);
       setError("할 일을 삭제하지 못했어요.");
-    }
-  }
-
-  function startTaskEdit(task: Task) {
-    setEditingTaskId(task.id);
-    setEditTitle(task.title);
-    setEditCategory(task.category);
-    setEditDueTime(task.dueTime ?? "");
-    setError("");
-  }
-
-  function cancelTaskEdit() {
-    setEditingTaskId(null);
-    setEditTitle("");
-    setEditDueTime("");
-  }
-
-  async function saveTaskEdit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanTitle = editTitle.trim();
-    if (!editingTaskId || !cleanTitle || saving) return;
-
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch("/api/tasks", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: editingTaskId,
-          title: cleanTitle,
-          category: editCategory,
-          dueTime: editDueTime || null,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(
-          await responseError(response, "일정을 수정하지 못했어요."),
-        );
-      }
-
-      const payload = (await response.json()) as { task: Task };
-      setTasks((current) =>
-        current.map((task) =>
-          task.id === payload.task.id ? payload.task : task,
-        ),
-      );
-      cancelTaskEdit();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "잠시 후 다시 시도해 주세요.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function changePassword(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!member || changingPassword) return;
-    if (newPassword !== confirmPassword) {
-      setPasswordMessage("새 비밀번호 확인이 일치하지 않습니다.");
-      return;
-    }
-
-    setChangingPassword(true);
-    setPasswordMessage("비밀번호를 변경하는 중입니다…");
-    try {
-      const credentials = encodeBasicCredentials(
-        member.username,
-        currentPassword,
-      );
-      const response = await fetch("/api/member-password", {
-        method: "PATCH",
-        headers: {
-          authorization: `Basic ${credentials}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ newPassword }),
-      });
-      if (!response.ok) {
-        throw new Error(
-          await responseError(response, "비밀번호를 변경하지 못했어요."),
-        );
-      }
-
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setPasswordMessage("비밀번호가 변경되었습니다.");
-    } catch (cause) {
-      setPasswordMessage(
-        cause instanceof Error ? cause.message : "잠시 후 다시 시도해 주세요.",
-      );
-    } finally {
-      setChangingPassword(false);
     }
   }
 
@@ -386,6 +274,14 @@ export function TodoApp({
         </header>
 
         <div className="hero" id="top">
+          <Image
+            className="hero-art"
+            src="/haru-editorial-hero.png"
+            alt="초록색 플래너와 체크리스트, 금색 성장 화살표가 있는 편집형 블로그 커버"
+            fill
+            priority
+            sizes="(max-width: 980px) 100vw, 980px"
+          />
           <div className="hero-copy-block">
             <p className="eyebrow">{displayDate()}</p>
             <h1>
@@ -400,22 +296,13 @@ export function TodoApp({
             </h1>
             <p className="hero-copy">오늘의 작은 완료가 내일의 여유를 만들어요.</p>
           </div>
-          <div className="hero-visual">
-            <Image
-              src="/haru-library.png"
-              alt="햇살이 드는 원목 서재와 책장, 독서 테이블"
-              fill
-              priority
-              sizes="(max-width: 640px) 100vw, 46vw"
-            />
-            <div
-              className="progress-ring"
-              style={{ "--progress": `${progress}%` } as React.CSSProperties}
-              aria-label={`전체 할 일 ${tasks.length}개 중 ${completedCount}개 완료`}
-            >
-              <span>{completedCount}/{tasks.length}</span>
-              <small>완료</small>
-            </div>
+          <div
+            className="progress-ring"
+            style={{ "--progress": `${progress}%` } as React.CSSProperties}
+            aria-label={`전체 할 일 ${tasks.length}개 중 ${completedCount}개 완료`}
+          >
+            <span>{completedCount}/{tasks.length}</span>
+            <small>오늘의 완료</small>
           </div>
         </div>
 
@@ -481,58 +368,6 @@ export function TodoApp({
           )}
         </div>
 
-        {member?.role === "admin" && (
-          <section className="admin-tools" aria-labelledby="admin-tools-title">
-            <div className="admin-tools-copy">
-              <p className="admin-kicker">ADMIN</p>
-              <h2 id="admin-tools-title">관리자 도구</h2>
-              <p>일정 수정·삭제와 관리자 비밀번호 변경을 관리합니다.</p>
-            </div>
-            <form className="password-form" onSubmit={changePassword}>
-              <label>
-                현재 비밀번호
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-              </label>
-              <label>
-                새 비밀번호
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  autoComplete="new-password"
-                  minLength={12}
-                  maxLength={128}
-                  required
-                />
-              </label>
-              <label>
-                새 비밀번호 확인
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  autoComplete="new-password"
-                  minLength={12}
-                  maxLength={128}
-                  required
-                />
-              </label>
-              <button type="submit" disabled={changingPassword}>
-                {changingPassword ? "변경 중" : "비밀번호 변경"}
-              </button>
-              <p className="password-message" role="status">
-                {passwordMessage}
-              </p>
-            </form>
-          </section>
-        )}
-
         {error && <p className="error-message" role="status">{error}</p>}
 
         <section className="task-section">
@@ -554,67 +389,22 @@ export function TodoApp({
                     onChange={() => void toggleTask(task)}
                     aria-label={`${task.title}을(를) ${task.completed ? "진행 중" : "완료"}으로 표시`}
                   />
-                  {editingTaskId === task.id ? (
-                    <form className="task-edit-form" onSubmit={saveTaskEdit}>
-                      <label className="sr-only" htmlFor={`edit-title-${task.id}`}>일정명</label>
-                      <input
-                        id={`edit-title-${task.id}`}
-                        value={editTitle}
-                        onChange={(event) => setEditTitle(event.target.value)}
-                        maxLength={120}
-                        required
-                      />
-                      <label className="sr-only" htmlFor={`edit-category-${task.id}`}>분류</label>
-                      <select
-                        id={`edit-category-${task.id}`}
-                        value={editCategory}
-                        onChange={(event) => setEditCategory(event.target.value)}
-                      >
-                        <option>개인</option>
-                        <option>업무</option>
-                        <option>건강</option>
-                        <option>공부</option>
-                      </select>
-                      <label className="sr-only" htmlFor={`edit-time-${task.id}`}>시간</label>
-                      <input
-                        id={`edit-time-${task.id}`}
-                        type="time"
-                        value={editDueTime}
-                        onChange={(event) => setEditDueTime(event.target.value)}
-                      />
-                      <div className="edit-actions">
-                        <button type="submit" disabled={saving}>저장</button>
-                        <button type="button" onClick={cancelTaskEdit}>취소</button>
-                      </div>
-                    </form>
-                  ) : (
-                    <div className="task-copy">
-                      <h3>{task.title}</h3>
-                      <p>
-                        <span className={`tag ${categoryClass[task.category] ?? "mint"}`}>{task.category}</span>
-                        <span>{displayTime(task.dueTime)}</span>
-                      </p>
-                    </div>
-                  )}
-                  {member?.role === "admin" && editingTaskId !== task.id && (
-                    <div className="task-actions">
-                      <button
-                        className="edit-task"
-                        type="button"
-                        onClick={() => startTaskEdit(task)}
-                        aria-label={`${task.title} 수정`}
-                      >
-                        수정
-                      </button>
-                      <button
-                        className="delete-task"
-                        type="button"
-                        onClick={() => void removeTask(task)}
-                        aria-label={`${task.title} 삭제`}
-                      >
-                        삭제
-                      </button>
-                    </div>
+                  <div className="task-copy">
+                    <h3>{task.title}</h3>
+                    <p>
+                      <span className={`tag ${categoryClass[task.category] ?? "mint"}`}>{task.category}</span>
+                      <span>{displayTime(task.dueTime)}</span>
+                    </p>
+                  </div>
+                  {member?.role === "admin" && (
+                    <button
+                      className="delete-task"
+                      type="button"
+                      onClick={() => void removeTask(task)}
+                      aria-label={`${task.title} 삭제`}
+                    >
+                      삭제
+                    </button>
                   )}
                 </article>
               ))}
