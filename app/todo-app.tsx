@@ -3,17 +3,8 @@
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type User = {
-  displayName: string;
-  email: string;
-};
-
-type AppMember = {
-  username: string;
-  displayName: string;
-  role: string;
-};
-
+type User = { displayName: string; email: string };
+type AppMember = { username: string; displayName: string; role: string };
 type Task = {
   id: string;
   title: string;
@@ -22,42 +13,33 @@ type Task = {
   completed: boolean;
   createdAt: string;
 };
-
 type Filter = "all" | "open" | "done";
+type CategoryFilter = "all" | "개인" | "업무" | "건강" | "공부";
 
 const PREVIEW_TASKS: Task[] = [
-  {
-    id: "preview-1",
-    title: "분기 보고서 마무리",
-    category: "업무",
-    dueTime: "11:00",
-    completed: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "preview-2",
-    title: "치과 예약하기",
-    category: "개인",
-    dueTime: "14:30",
-    completed: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "preview-3",
-    title: "아침 운동",
-    category: "건강",
-    dueTime: "07:00",
-    completed: true,
-    createdAt: new Date().toISOString(),
-  },
+  { id: "preview-1", title: "OPIc 1일차 완성", category: "공부", dueTime: "11:00", completed: true, createdAt: new Date().toISOString() },
+  { id: "preview-2", title: "분석 신청", category: "업무", dueTime: "14:30", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-3", title: "관리 템플릿 문장 수정", category: "개인", dueTime: "16:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-4", title: "저녁 산책하기", category: "건강", dueTime: "20:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-5", title: "기숙사 신청", category: "개인", dueTime: "09:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-6", title: "연구실 미팅", category: "업무", dueTime: "13:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-7", title: "여행 준비 체크", category: "개인", dueTime: "18:30", completed: true, createdAt: new Date().toISOString() },
+  { id: "preview-8", title: "독서 30분", category: "공부", dueTime: "21:00", completed: false, createdAt: new Date().toISOString() },
 ];
 
-const categoryClass: Record<string, string> = {
-  업무: "coral",
-  개인: "mint",
-  건강: "blue",
-  공부: "violet",
-};
+const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; label: string; icon: string }> = [
+  { value: "all", label: "전체 일정", icon: "dashboard" },
+  { value: "개인", label: "개인", icon: "person" },
+  { value: "업무", label: "업무", icon: "work" },
+  { value: "건강", label: "건강", icon: "favorite" },
+  { value: "공부", label: "공부", icon: "school" },
+];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+const categoryClass: Record<string, string> = { 업무: "coral", 개인: "mint", 건강: "blue", 공부: "violet" };
+
+function Icon({ name }: { name: string }) {
+  return <span className="material-symbols-rounded" aria-hidden="true">{name}</span>;
+}
 
 function displayTime(value: string | null) {
   if (!value) return "시간 미정";
@@ -69,13 +51,17 @@ function displayTime(value: string | null) {
 }
 
 function displayDate() {
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-    timeZone: "Asia/Seoul",
-  }).format(new Date());
+  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+function monthLabel(date: Date) {
+  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", timeZone: "Asia/Seoul" }).format(date);
+}
+
+function taskCalendarDay(task: Task, index: number, daysInMonth: number) {
+  const source = new Date(task.createdAt);
+  const base = Number.isNaN(source.getTime()) ? new Date().getDate() : source.getDate();
+  return ((base - 1 + index * 4) % daysInMonth) + 1;
 }
 
 async function responseError(response: Response, fallback: string) {
@@ -87,16 +73,43 @@ async function responseError(response: Response, fallback: string) {
   }
 }
 
-export function TodoApp({
-  user,
-  isLocalPreview,
-}: {
-  user: User | null;
-  isLocalPreview: boolean;
+function PlanGroup({ label, tasks, member, onToggle, onRemove }: {
+  label: string;
+  tasks: Task[];
+  member: AppMember | null;
+  onToggle: (task: Task) => void;
+  onRemove: (task: Task) => void;
 }) {
+  if (!tasks.length) return null;
+  return (
+    <section className="plan-group">
+      <h3><Icon name="arrow_drop_down" /> {label}</h3>
+      <div className="plan-items">
+        {tasks.map((task) => (
+          <article className={`plan-task ${task.completed ? "done" : ""}`} key={task.id}>
+            <input className="check" type="checkbox" checked={task.completed} onChange={() => onToggle(task)} aria-label={`${task.title}을(를) ${task.completed ? "진행 중" : "완료"}으로 표시`} />
+            <div className="plan-task-copy">
+              <strong>{task.title}</strong>
+              <small>{displayTime(task.dueTime)}</small>
+            </div>
+            <span className={`status-tag ${categoryClass[task.category] ?? "mint"}`}>{task.category}</span>
+            {member?.role === "admin" && (
+              <button className="icon-button delete-task" type="button" onClick={() => onRemove(task)} aria-label={`${task.title} 삭제`} title="일정 삭제">
+                <Icon name="delete" />
+              </button>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPreview: boolean }) {
   const isPreview = user === null;
   const [tasks, setTasks] = useState<Task[]>(isPreview ? PREVIEW_TASKS : []);
   const [filter, setFilter] = useState<Filter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("개인");
   const [dueTime, setDueTime] = useState("");
@@ -104,23 +117,16 @@ export function TodoApp({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [member, setMember] = useState<AppMember | null>(null);
+  const [calendarDate, setCalendarDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
   useEffect(() => {
     if (isPreview) return;
     let active = true;
-
     async function loadTasks() {
       try {
         const response = await fetch("/api/tasks", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(
-            await responseError(response, "할 일을 불러오지 못했어요."),
-          );
-        }
-        const payload = (await response.json()) as {
-          tasks: Task[];
-          member: AppMember;
-        };
+        if (!response.ok) throw new Error(await responseError(response, "할 일을 불러오지 못했어요."));
+        const payload = (await response.json()) as { tasks: Task[]; member: AppMember };
         if (!active) return;
         setTasks(payload.tasks);
         setMember(payload.member);
@@ -132,66 +138,45 @@ export function TodoApp({
         if (active) setLoading(false);
       }
     }
-
     void loadTasks();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [isPreview]);
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const openCount = tasks.length - completedCount;
-  const progress = tasks.length ? (completedCount / tasks.length) * 100 : 0;
-  const visibleTasks = useMemo(
-    () =>
-      tasks.filter((task) => {
-        if (filter === "open") return !task.completed;
-        if (filter === "done") return task.completed;
-        return true;
-      }),
-    [filter, tasks],
-  );
-
+  const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const categoryTasks = useMemo(() => tasks.filter((task) => categoryFilter === "all" || task.category === categoryFilter), [categoryFilter, tasks]);
+  const visibleTasks = useMemo(() => categoryTasks.filter((task) => filter === "open" ? !task.completed : filter === "done" ? task.completed : true), [categoryTasks, filter]);
   const accountName = member?.displayName ?? user?.displayName;
-  const displayName = accountName?.includes("@")
-    ? accountName.split("@")[0]
-    : accountName?.split(" ")[0] ?? "관리자";
+  const displayName = accountName?.includes("@") ? accountName.split("@")[0] : accountName?.split(" ")[0] ?? "관리자";
   const initial = displayName.slice(0, 1).toUpperCase();
+  const daysInMonth = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate();
+  const firstWeekday = calendarDate.getDay();
+  const calendarCells = Array.from({ length: 42 }, (_, index) => {
+    const day = index - firstWeekday + 1;
+    return day > 0 && day <= daysInMonth ? day : null;
+  });
+  const tasksByDay = categoryTasks.reduce<Record<number, Task[]>>((result, task, index) => {
+    const day = taskCalendarDay(task, index, daysInMonth);
+    result[day] = [...(result[day] ?? []), task];
+    return result;
+  }, {});
+  const openTasks = visibleTasks.filter((task) => !task.completed);
+  const completedTasks = visibleTasks.filter((task) => task.completed);
 
   async function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanTitle = title.trim();
     if (!cleanTitle || saving) return;
-
-    const draft: Task = {
-      id: crypto.randomUUID(),
-      title: cleanTitle,
-      category,
-      dueTime: dueTime || null,
-      completed: false,
-      createdAt: new Date().toISOString(),
-    };
-
+    const draft: Task = { id: crypto.randomUUID(), title: cleanTitle, category, dueTime: dueTime || null, completed: false, createdAt: new Date().toISOString() };
     setSaving(true);
     setError("");
     try {
       if (isPreview) {
         setTasks((current) => [draft, ...current]);
       } else {
-        const response = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            title: cleanTitle,
-            category,
-            dueTime: dueTime || null,
-          }),
-        });
-        if (!response.ok) {
-          throw new Error(
-            await responseError(response, "할 일을 저장하지 못했어요."),
-          );
-        }
+        const response = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: cleanTitle, category, dueTime: dueTime || null }) });
+        if (!response.ok) throw new Error(await responseError(response, "할 일을 저장하지 못했어요."));
         const payload = (await response.json()) as { task: Task };
         setTasks((current) => [payload.task, ...current]);
       }
@@ -207,24 +192,11 @@ export function TodoApp({
 
   async function toggleTask(task: Task) {
     const nextCompleted = !task.completed;
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === task.id ? { ...item, completed: nextCompleted } : item,
-      ),
-    );
+    setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: nextCompleted } : item));
     if (isPreview) return;
-
-    const response = await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: task.id, completed: nextCompleted }),
-    });
+    const response = await fetch("/api/tasks", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: task.id, completed: nextCompleted }) });
     if (!response.ok) {
-      setTasks((current) =>
-        current.map((item) =>
-          item.id === task.id ? { ...item, completed: task.completed } : item,
-        ),
-      );
+      setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: task.completed } : item));
       setError("완료 상태를 바꾸지 못했어요.");
     }
   }
@@ -232,192 +204,128 @@ export function TodoApp({
   async function removeTask(task: Task) {
     setTasks((current) => current.filter((item) => item.id !== task.id));
     if (isPreview) return;
-
-    const response = await fetch("/api/tasks", {
-      method: "DELETE",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id: task.id }),
-    });
+    const response = await fetch("/api/tasks", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: task.id }) });
     if (!response.ok) {
       setTasks((current) => [task, ...current]);
       setError("할 일을 삭제하지 못했어요.");
     }
   }
 
+  function moveMonth(offset: number) {
+    setCalendarDate((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  }
+
   return (
     <main className="app-shell">
       <section className="todo-app" aria-label="할 일 관리 앱">
-        <header className="topbar">
-          <a className="brand" href="#top" aria-label="하루 홈">
-            <span>Today&apos;s 하루</span>
-          </a>
+        <header className="page-header" id="top">
+          <div className="title-block">
+            <Image className="calendar-mark" src="/dashboard-calendar-mark.png" alt="분홍색 탁상 달력 일러스트" width={72} height={72} priority />
+            <div>
+              <p className="header-kicker">TODAY&apos;S HARU · {displayDate()}</p>
+              <h1>대학생을 위한 2026 관리 템플릿</h1>
+            </div>
+          </div>
           <div className="account">
             {isPreview ? (
-              <a
-                className="preview-badge"
-                href={
-                  isLocalPreview
-                    ? "/api/dev-login"
-                    : "/signin-with-chatgpt?return_to=%2F"
-                }
-              >
-                미리보기 · 로그인
+              <a className="preview-badge" href={isLocalPreview ? "/api/dev-login" : "/signin-with-chatgpt?return_to=%2F"}>
+                <Icon name="login" /> 미리보기 · 로그인
               </a>
             ) : (
-              <span className="sync-status">
-                <i /> {member?.role === "admin" ? "관리자 · " : ""}
-                안전하게 동기화됨
-              </span>
+              <span className="sync-status"><Icon name="cloud_done" />{member?.role === "admin" ? "관리자 · " : ""}동기화됨</span>
             )}
             <span className="profile" aria-label={`${displayName} 프로필`}>{initial}</span>
           </div>
         </header>
 
-        <div className="hero" id="top">
-          <Image
-            className="hero-art"
-            src="/haru-editorial-hero.png"
-            alt="초록색 플래너와 체크리스트, 금색 성장 화살표가 있는 편집형 블로그 커버"
-            fill
-            priority
-            sizes="(max-width: 980px) 100vw, 980px"
-          />
-          <div className="hero-copy-block">
-            <p className="eyebrow">{displayDate()}</p>
-            <h1>
-              {isPreview ? (
-                "좋은 하루 되세요 화이팅!"
-              ) : (
-                <>
-                  좋은 하루예요
-                  <span className="hero-name">{displayName}님.</span>
-                </>
-              )}
-            </h1>
-            <p className="hero-copy">오늘의 작은 완료가 내일의 여유를 만들어요.</p>
-          </div>
-          <div
-            className="progress-ring"
-            style={{ "--progress": `${progress}%` } as React.CSSProperties}
-            aria-label={`전체 할 일 ${tasks.length}개 중 ${completedCount}개 완료`}
-          >
-            <span>{completedCount}/{tasks.length}</span>
-            <small>오늘의 완료</small>
-          </div>
-        </div>
-
-        <form className="quick-add" onSubmit={addTask}>
-          <label className="sr-only" htmlFor="new-task">새 할 일</label>
-          <input
-            id="new-task"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="새 할 일을 입력하세요"
-            autoComplete="off"
-            maxLength={120}
-          />
-          <label className="sr-only" htmlFor="task-category">분류</label>
-          <select
-            id="task-category"
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            aria-label="할 일 분류"
-          >
-            <option>개인</option>
-            <option>업무</option>
-            <option>건강</option>
-            <option>공부</option>
-          </select>
-          <label className="sr-only" htmlFor="task-time">시간</label>
-          <input
-            className="time-input"
-            id="task-time"
-            type="time"
-            value={dueTime}
-            onChange={(event) => setDueTime(event.target.value)}
-            aria-label="할 일 시간"
-          />
-          <button type="submit" disabled={!title.trim() || saving}>
-            {saving ? "저장 중" : "추가"}
-          </button>
-        </form>
-
-        <div className="list-toolbar">
-          <nav className="filters" aria-label="할 일 필터">
-            <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button">
-              전체 <span>{tasks.length}</span>
-            </button>
-            <button className={filter === "open" ? "active" : ""} onClick={() => setFilter("open")} type="button">
-              진행 중 <span>{openCount}</span>
-            </button>
-            <button className={filter === "done" ? "active" : ""} onClick={() => setFilter("done")} type="button">
-              완료 <span>{completedCount}</span>
-            </button>
-          </nav>
-          {!isPreview && (
-            <a
-              className="signout"
-              href={
-                isLocalPreview
-                  ? "/api/dev-logout"
-                  : "/signout-with-chatgpt?return_to=%2F"
-              }
-            >
-              로그아웃
-            </a>
-          )}
-        </div>
-
         {error && <p className="error-message" role="status">{error}</p>}
 
-        <section className="task-section">
-          <div className="section-heading">
-            <h2>{filter === "done" ? "완료한 일" : filter === "open" ? "진행 중" : "오늘"}</h2>
-            <span>{openCount ? `${openCount}개 남음` : "모두 완료"}</span>
-          </div>
+        <div className="dashboard-grid">
+          <aside className="tool-rail" aria-label="일정 분류">
+            <div className="rail-title"><span>Buttons</span><i /></div>
+            <nav className="category-nav">
+              {CATEGORY_OPTIONS.map((item) => (
+                <button className={`${categoryClass[item.value] ?? "neutral"} ${categoryFilter === item.value ? "active" : ""}`} key={item.value} type="button" onClick={() => setCategoryFilter(item.value)}>
+                  <Icon name={item.icon} />{item.label}
+                </button>
+              ))}
+            </nav>
+            <section className="efficiency-card" aria-label={`오늘의 완료율 ${progress}%`}>
+              <div className="efficiency-heading"><span><Icon name="speed" /> Efficiency</span><Icon name="tune" /></div>
+              <div className="efficiency-visual"><Icon name="donut_large" /><strong>{progress}%</strong></div>
+              <p>{completedCount}개 완료 · {openCount}개 남음</p>
+            </section>
+          </aside>
 
-          {loading ? (
-            <div className="loading-state" role="status">할 일을 불러오는 중이에요…</div>
-          ) : visibleTasks.length ? (
-            <div className="task-list">
-              {visibleTasks.map((task) => (
-                <article className={`task-card ${task.completed ? "done" : ""}`} key={task.id}>
-                  <input
-                    className="check"
-                    type="checkbox"
-                    checked={task.completed}
-                    onChange={() => void toggleTask(task)}
-                    aria-label={`${task.title}을(를) ${task.completed ? "진행 중" : "완료"}으로 표시`}
-                  />
-                  <div className="task-copy">
-                    <h3>{task.title}</h3>
-                    <p>
-                      <span className={`tag ${categoryClass[task.category] ?? "mint"}`}>{task.category}</span>
-                      <span>{displayTime(task.dueTime)}</span>
-                    </p>
-                  </div>
-                  {member?.role === "admin" && (
-                    <button
-                      className="delete-task"
-                      type="button"
-                      onClick={() => void removeTask(task)}
-                      aria-label={`${task.title} 삭제`}
-                    >
-                      삭제
-                    </button>
-                  )}
-                </article>
+          <section className="calendar-panel" aria-label="월간 일정">
+            <div className="panel-heading">
+              <div>
+                <p className="panel-eyebrow">2026 전체 일정</p>
+                <div className="view-tabs" aria-label="일정 보기 방식">
+                  <button className="active" type="button"><Icon name="calendar_month" /> Calendar</button>
+                  <button type="button"><Icon name="table_rows" /> sch</button>
+                </div>
+              </div>
+              <button className="icon-button" type="button" aria-label="일정 보기 설정"><Icon name="tune" /></button>
+            </div>
+            <div className="month-toolbar">
+              <strong>{monthLabel(calendarDate)}</strong>
+              <div>
+                <button className="today-button" type="button" onClick={() => setCalendarDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}><Icon name="today" /> 오늘</button>
+                <button className="icon-button" type="button" onClick={() => moveMonth(-1)} aria-label="이전 달"><Icon name="chevron_left" /></button>
+                <button className="icon-button" type="button" onClick={() => moveMonth(1)} aria-label="다음 달"><Icon name="chevron_right" /></button>
+              </div>
+            </div>
+            <div className="calendar-weekdays" aria-hidden="true">{WEEKDAYS.map((weekday) => <span key={weekday}>{weekday}</span>)}</div>
+            <div className="calendar-grid">
+              {calendarCells.map((day, index) => (
+                <div className={`calendar-cell ${day === new Date().getDate() && calendarDate.getMonth() === new Date().getMonth() ? "today" : ""}`} key={index}>
+                  {day && <><span className="day-number">{day}</span><div className="calendar-events">
+                    {(tasksByDay[day] ?? []).slice(0, 2).map((task) => (
+                      <button className={`calendar-event ${categoryClass[task.category] ?? "mint"} ${task.completed ? "done" : ""}`} key={task.id} type="button" onClick={() => void toggleTask(task)} title={`${task.title} · ${displayTime(task.dueTime)}`}>{task.title}</button>
+                    ))}
+                  </div></>}
+                </div>
               ))}
             </div>
-          ) : (
-            <div className="empty-state">
-              <h3>{filter === "done" ? "아직 완료한 일이 없어요" : "가벼운 하루가 기다리고 있어요"}</h3>
-              <p>{filter === "done" ? "작은 일부터 하나씩 완료해 보세요." : "위 입력창에 첫 할 일을 적어보세요."}</p>
+          </section>
+
+          <aside className="daily-panel" aria-label="일일 계획">
+            <div className="daily-heading">
+              <div><p>Daily Plan</p><strong>{isPreview ? "좋은 하루 되세요 화이팅!" : `좋은 하루예요 ${displayName}님.`}</strong></div>
+              {!isPreview && <a className="signout" href={isLocalPreview ? "/api/dev-logout" : "/signout-with-chatgpt?return_to=%2F"}>로그아웃</a>}
             </div>
-          )}
-        </section>
+            <nav className="filters" aria-label="할 일 필터">
+              <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button"><Icon name="adjust" /> 전체 {tasks.length}</button>
+              <button className={filter === "open" ? "active" : ""} onClick={() => setFilter("open")} type="button">진행 중 {openCount}</button>
+              <button className={filter === "done" ? "active" : ""} onClick={() => setFilter("done")} type="button">완료 {completedCount}</button>
+              <button className="icon-button" type="button" aria-label="목록 보기 설정"><Icon name="tune" /></button>
+            </nav>
+            <form className="quick-add" onSubmit={addTask}>
+              <label className="sr-only" htmlFor="new-task">새 할 일</label>
+              <div className="composer-main"><Icon name="add_task" /><input id="new-task" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="새 일정을 입력하세요" autoComplete="off" maxLength={120} /></div>
+              <div className="composer-options">
+                <label className="sr-only" htmlFor="task-category">분류</label>
+                <select id="task-category" value={category} onChange={(event) => setCategory(event.target.value)} aria-label="할 일 분류"><option>개인</option><option>업무</option><option>건강</option><option>공부</option></select>
+                <label className="sr-only" htmlFor="task-time">시간</label>
+                <input className="time-input" id="task-time" type="time" value={dueTime} onChange={(event) => setDueTime(event.target.value)} aria-label="할 일 시간" />
+                <button className="add-button" type="submit" disabled={!title.trim() || saving}><Icon name={saving ? "hourglass_top" : "arrow_upward"} /><span className="sr-only">{saving ? "저장 중" : "추가"}</span></button>
+              </div>
+            </form>
+            {loading ? (
+              <div className="loading-state" role="status">할 일을 불러오는 중이에요…</div>
+            ) : visibleTasks.length ? (
+              <div className="plan-list">
+                <PlanGroup label="오늘" tasks={openTasks.slice(0, 3)} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
+                <PlanGroup label="주간" tasks={openTasks.slice(3)} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
+                <PlanGroup label="완료" tasks={completedTasks} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
+              </div>
+            ) : (
+              <div className="empty-state"><Icon name="event_available" /><h3>표시할 일정이 없어요</h3><p>필터를 바꾸거나 새 일정을 추가해 보세요.</p></div>
+            )}
+          </aside>
+        </div>
       </section>
-      <footer>하나씩, 천천히. 오늘도 충분해요.</footer>
     </main>
   );
 }
