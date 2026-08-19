@@ -7,6 +7,7 @@ const TODO_DATABASE_NAME = "Todo-project";
 const TODO_DATABASE_ID = "5606226e-eedf-48eb-a47f-686655903eb4";
 
 const { d1, r2 } = hostingConfig;
+const useRemoteD1 = process.env.TODO_D1_REMOTE !== "false";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
@@ -20,7 +21,7 @@ const localBindingConfig = {
           binding: d1,
           database_name: TODO_DATABASE_NAME,
           database_id: TODO_DATABASE_ID,
-          remote: true,
+          remote: useRemoteD1,
         },
       ]
     : [],

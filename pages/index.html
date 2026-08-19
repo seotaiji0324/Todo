@@ -3,954 +3,432 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Cloudflare D1과 연결된 Today's 하루 일정 관리 앱"
-    />
-    <title>Today's 하루</title>
+    <meta name="description" content="Cloudflare D1? ??? Today's ?? ?? ?? ?" />
+    <title>Today's ??</title>
     <style>
-      :root {
-        color-scheme: light;
-        font-family: Pretendard, "Noto Sans KR", system-ui, sans-serif;
-        --ink: #201d18;
-        --muted: #746a5b;
-        --green: #315542;
-        --green-light: #dcebdc;
-        --paper: rgb(255 255 255 / 92%);
-        --line: rgb(71 57 39 / 15%);
-        --shadow: 0 1.5rem 4rem rgb(37 29 19 / 22%);
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      body {
-        min-height: 100vh;
-        margin: 0;
-        color: var(--ink);
-        background:
-          linear-gradient(rgb(245 241 232 / 72%), rgb(245 241 232 / 72%)),
-          url("https://haru-todo-app.seotaiji0324.workers.dev/haru-library.png")
-            center / cover fixed;
-      }
-
-      button,
-      input,
-      select {
-        font: inherit;
-      }
-
-      button {
-        cursor: pointer;
-      }
-
-      .shell {
-        width: min(70rem, calc(100% - 2rem));
-        margin: 0 auto;
-        padding: 1.25rem 0 3rem;
-      }
-
-      .topbar,
-      .card {
-        background: var(--paper);
-        border: 1px solid var(--line);
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(14px);
-      }
-
-      .topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-radius: 1.25rem;
-      }
-
-      .brand {
-        margin: 0;
-        color: #11110f;
-        font-size: clamp(1.8rem, 5vw, 2.5rem);
-        font-weight: 850;
-        letter-spacing: -0.05em;
-      }
-
-      .session {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-
-      .session-copy {
-        display: none;
-        color: var(--muted);
-        font-size: 0.9rem;
-        text-align: right;
-      }
-
-      .session-copy strong {
-        display: block;
-        color: var(--ink);
-        font-size: 1rem;
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
-        gap: 1.25rem;
-        margin-top: 1.25rem;
-      }
-
-      .card {
-        border-radius: 1.5rem;
-      }
-
-      .intro {
-        min-height: 22rem;
-        padding: clamp(2rem, 6vw, 4rem);
-        background:
-          linear-gradient(100deg, rgb(25 21 16 / 82%), rgb(25 21 16 / 24%)),
-          url("https://haru-todo-app.seotaiji0324.workers.dev/haru-library.png")
-            center / cover;
-        color: white;
-      }
-
-      .eyebrow {
-        margin: 0 0 1rem;
-        color: #dbe9d4;
-        font-size: 0.8rem;
-        font-weight: 800;
-        letter-spacing: 0.15em;
-        text-transform: uppercase;
-      }
-
-      .intro h2 {
-        max-width: 12ch;
-        margin: 0;
-        font-family: Georgia, "Noto Serif KR", serif;
-        font-size: clamp(2.4rem, 7vw, 4.8rem);
-        line-height: 1.05;
-        letter-spacing: -0.06em;
-      }
-
-      .intro p:last-child {
-        max-width: 32rem;
-        margin: 1.4rem 0 0;
-        color: rgb(255 255 255 / 80%);
-        line-height: 1.8;
-      }
-
-      .login {
-        display: grid;
-        align-content: center;
-        padding: clamp(1.5rem, 5vw, 2.5rem);
-      }
-
-      .login h2,
-      .tasks-title {
-        margin: 0;
-        font-size: 1.45rem;
-        letter-spacing: -0.04em;
-      }
-
-      .login > p {
-        margin: 0.65rem 0 1.5rem;
-        color: var(--muted);
-        line-height: 1.6;
-      }
-
-      .field {
-        display: grid;
-        gap: 0.45rem;
-        margin-bottom: 0.9rem;
-      }
-
-      label {
-        color: #554c40;
-        font-size: 0.84rem;
-        font-weight: 750;
-      }
-
-      input,
-      select {
-        width: 100%;
-        min-height: 3rem;
-        padding: 0.75rem 0.9rem;
-        color: var(--ink);
-        background: white;
-        border: 1px solid #d8d0c3;
-        border-radius: 0.8rem;
-        outline: none;
-      }
-
-      input:focus,
-      select:focus {
-        border-color: var(--green);
-        box-shadow: 0 0 0 3px rgb(49 85 66 / 13%);
-      }
-
-      .primary,
-      .secondary,
-      .edit,
-      .danger,
-      .filter {
-        border: 0;
-        border-radius: 999px;
-        font-weight: 800;
-      }
-
-      .primary {
-        min-height: 3rem;
-        padding: 0.8rem 1.25rem;
-        color: white;
-        background: var(--green);
-      }
-
-      .login .primary {
-        width: 100%;
-        margin-top: 0.25rem;
-      }
-
-      .secondary {
-        padding: 0.65rem 0.95rem;
-        color: var(--green);
-        background: var(--green-light);
-      }
-
-      .message {
-        min-height: 1.35rem;
-        margin: 0.8rem 0 0;
-        color: #9e3b32;
-        font-size: 0.88rem;
-      }
-
-      .admin-panel {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-      }
-
-      .admin-block {
-        padding: 1rem;
-        background: #f8f5ee;
-        border: 1px solid var(--line);
-        border-radius: 1rem;
-      }
-
-      .admin-block h3 {
-        margin: 0;
-        font-size: 1rem;
-      }
-
-      .admin-block > p {
-        margin: 0.35rem 0 0.85rem;
-        color: var(--muted);
-        font-size: 0.82rem;
-        line-height: 1.55;
-      }
-
-      .admin-form {
-        display: grid;
-        gap: 0.65rem;
-      }
-
-      .admin-form-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 7rem 7rem;
-        gap: 0.55rem;
-      }
-
-      .admin-form-actions,
-      .task-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-      }
-
-      .admin-form .message {
-        margin: 0;
-      }
-
-      .workspace {
-        margin-top: 1.25rem;
-        padding: clamp(1.25rem, 4vw, 2rem);
-      }
-
-      .workspace-head,
-      .filters,
-      .task-row,
-      .task-main {
-        display: flex;
-        align-items: center;
-      }
-
-      .workspace-head {
-        justify-content: space-between;
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-      }
-
-      .summary {
-        margin: 0.3rem 0 0;
-        color: var(--muted);
-        font-size: 0.9rem;
-      }
-
-      .task-form {
-        display: grid;
-        grid-template-columns: minmax(12rem, 1fr) 8rem 8rem auto;
-        gap: 0.65rem;
-        padding: 0.8rem;
-        background: #f4f1ea;
-        border: 1px solid var(--line);
-        border-radius: 1rem;
-      }
-
-      .filters {
-        gap: 0.45rem;
-        margin: 1rem 0;
-      }
-
-      .filter {
-        padding: 0.55rem 0.85rem;
-        color: #655c50;
-        background: transparent;
-      }
-
-      .filter.active {
-        color: var(--green);
-        background: var(--green-light);
-      }
-
-      .task-list {
-        display: grid;
-        gap: 0.65rem;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-
-      .task-row {
-        justify-content: space-between;
-        gap: 1rem;
-        min-height: 4.5rem;
-        padding: 0.85rem 1rem;
-        background: white;
-        border: 1px solid var(--line);
-        border-radius: 1rem;
-      }
-
-      .task-main {
-        min-width: 0;
-        gap: 0.9rem;
-      }
-
-      .task-main input {
-        width: 1.15rem;
-        min-height: auto;
-        accent-color: var(--green);
-      }
-
-      .task-title {
-        overflow-wrap: anywhere;
-        font-weight: 750;
-      }
-
-      .task-row.completed .task-title {
-        color: #8b8378;
-        text-decoration: line-through;
-      }
-
-      .task-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-        margin-top: 0.35rem;
-        color: var(--muted);
-        font-size: 0.8rem;
-      }
-
-      .chip {
-        padding: 0.15rem 0.5rem;
-        color: var(--green);
-        background: #edf5ea;
-        border-radius: 999px;
-        font-weight: 750;
-      }
-
-      .danger {
-        flex: 0 0 auto;
-        padding: 0.5rem 0.7rem;
-        color: #9e3b32;
-        background: #fff0ed;
-      }
-
-      .edit {
-        flex: 0 0 auto;
-        padding: 0.5rem 0.7rem;
-        color: var(--green);
-        background: var(--green-light);
-      }
-
-      .empty {
-        padding: 3rem 1rem;
-        color: var(--muted);
-        text-align: center;
-        background: rgb(255 255 255 / 55%);
-        border: 1px dashed #cfc6b8;
-        border-radius: 1rem;
-      }
-
-      [hidden] {
-        display: none !important;
-      }
-
-      @media (max-width: 780px) {
-        .hero {
-          grid-template-columns: 1fr;
-        }
-
-        .intro {
-          min-height: 18rem;
-        }
-
-        .task-form {
-          grid-template-columns: 1fr 1fr;
-        }
-
-        .task-form input:first-child,
-        .task-form .primary {
-          grid-column: 1 / -1;
-        }
-
-        .admin-panel {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 520px) {
-        .shell {
-          width: min(100% - 1rem, 70rem);
-          padding-top: 0.5rem;
-        }
-
-        .session-copy {
-          display: none !important;
-        }
-
-        .task-form {
-          grid-template-columns: 1fr;
-        }
-
-        .task-form input:first-child,
-        .task-form .primary {
-          grid-column: auto;
-        }
-
-        .task-row {
-          align-items: flex-start;
-        }
-
-        .admin-form-row {
-          grid-template-columns: 1fr;
-        }
+      :root { --ink:#35271d; --muted:#766b5f; --cream:#f4eee3; --paper:#fffdf8; --green:#35563d; --wood:#68452f; --gold:#ae8450; --line:#d8cab6; --coral:#a85f45; }
+      * { box-sizing:border-box; }
+      html { scroll-behavior:smooth; }
+      body { margin:0; background-color:#2d2119; background-image:url("https://haru-todo-app.seotaiji0324.workers.dev/haru-library.png"); background-position:center; background-size:cover; background-attachment:fixed; color:var(--ink); font-family:"Apple SD Gothic Neo","Noto Sans KR",Arial,sans-serif; }
+      button,input,select { font:inherit; }
+      button { color:inherit; }
+      .app-shell { position:relative; min-height:100vh; padding:28px 24px 22px; background:rgba(246,241,232,.72); backdrop-filter:blur(1px); }
+      .todo-app { position:relative; width:min(100%,980px); margin:0 auto; }
+      .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:34px; border-bottom:1px solid rgba(104,69,47,.22); padding:0 4px 18px; }
+      .brand { display:flex; align-items:center; color:#11110f; text-decoration:none; font-family:Georgia,"Times New Roman","Apple SD Gothic Neo",serif; font-size:40px; font-weight:800; letter-spacing:-.035em; text-shadow:0 1px 0 rgba(255,255,255,.8); }
+      .account { display:flex; align-items:center; gap:12px; }
+      .profile { display:grid; width:40px; height:40px; place-items:center; border:1px solid #92704c; border-radius:50%; background:#d8bd91; color:#483120; box-shadow:0 5px 15px rgba(67,43,28,.14); font-weight:800; }
+      .preview-badge { border:1px solid rgba(174,132,80,.34); border-radius:999px; padding:8px 11px; background:rgba(255,250,238,.9); color:#725535; text-decoration:none; font-size:11px; font-weight:800; cursor:pointer; }
+      .sync-status { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; }
+      .sync-status i { width:7px; height:7px; border-radius:50%; background:#47a27d; box-shadow:0 0 0 4px rgba(71,162,125,.12); }
+      .hero { display:grid; grid-template-columns:minmax(0,1.02fr) minmax(340px,.98fr); align-items:center; gap:34px; padding:0 0 38px; }
+      .hero-copy-block { border:1px solid rgba(104,69,47,.18); border-radius:4px 24px 24px 24px; padding:38px 34px; background:rgba(255,253,248,.76); box-shadow:0 18px 45px rgba(69,45,29,.09); }
+      .eyebrow { margin:0 0 12px; color:var(--wood); font-size:13px; font-weight:800; letter-spacing:.08em; }
+      h1 { margin:0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(38px,6vw,62px); font-weight:500; letter-spacing:-.055em; line-height:1.08; }
+      .hero-name { display:block; margin-top:8px; }
+      .hero-copy { margin:16px 0 0; color:var(--muted); font-size:16px; line-height:1.7; }
+      .hero-visual { position:relative; min-height:320px; overflow:hidden; border:1px solid rgba(174,132,80,.62); border-radius:26px 8px 26px 26px; background:#6a4935; box-shadow:0 24px 70px rgba(54,34,22,.26); }
+      .hero-visual img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; transform:scale(1.01); }
+      .hero-visual::after { content:""; position:absolute; inset:0; background:rgba(42,29,20,.08); pointer-events:none; }
+      .progress-ring { position:absolute; right:18px; bottom:18px; z-index:1; display:grid; width:96px; height:96px; place-content:center; border-radius:50%; background:conic-gradient(var(--green) 0 var(--progress),rgba(255,255,255,.72) var(--progress) 100%); box-shadow:0 12px 30px rgba(14,41,34,.24); text-align:center; transition:background .3s ease; }
+      .progress-ring::after { content:""; position:absolute; inset:8px; border-radius:50%; background:#fbf6ec; }
+      .progress-ring span,.progress-ring small { position:relative; z-index:1; }
+      .progress-ring span { font:600 25px Georgia,serif; }
+      .progress-ring small { color:var(--muted); font-size:11px; }
+      .quick-add { display:flex; align-items:center; gap:15px; padding:12px 12px 12px 20px; border:1px solid #cdbb9f; border-radius:16px 5px 16px 16px; background:rgba(255,253,248,.94); box-shadow:0 15px 42px rgba(69,45,29,.12); }
+      .quick-add input { min-width:0; border:0; outline:0; background:transparent; color:var(--ink); }
+      .quick-add input:not(.time-input) { flex:1; font-size:16px; }
+      .quick-add input::placeholder { color:#97a29f; }
+      .quick-add select,.time-input { border:1px solid #d8c9b4; border-radius:8px; background:#f7f0e5; color:var(--muted); }
+      .quick-add select { padding:8px 28px 8px 10px; font-size:12px; }
+      .quick-add .time-input { width:100px; padding:7px 8px; font-size:12px; }
+      .quick-add button { border:1px solid #294430; border-radius:8px; padding:11px 22px; background:var(--green); color:white; box-shadow:0 5px 14px rgba(53,86,61,.2); cursor:pointer; font-weight:800; }
+      .quick-add button:disabled { cursor:not-allowed; opacity:.48; }
+      .list-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:24px 0 40px; }
+      .filters { display:flex; gap:8px; }
+      .filters button { border:1px solid #d2c3ae; border-radius:999px; padding:8px 14px; background:rgba(255,253,248,.58); color:var(--muted); cursor:pointer; font-size:13px; font-weight:700; }
+      .filters button span { margin-left:5px; opacity:.65; }
+      .filters button.active { border-color:var(--green); background:var(--green); color:white; }
+      .signout,.admin-open { border:0; padding:0; background:transparent; color:var(--muted); cursor:pointer; font-size:11px; text-decoration:underline; text-underline-offset:3px; }
+      .error-message { margin:-24px 0 25px; border:1px solid #efc7bd; border-radius:10px; padding:10px 12px; background:#fff1ed; color:#9a4434; font-size:12px; }
+      .task-section { border:1px solid rgba(104,69,47,.18); border-radius:5px 22px 22px 22px; padding:24px; background:rgba(255,253,248,.66); box-shadow:0 18px 55px rgba(69,45,29,.08); }
+      .section-heading { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; border-bottom:1px solid rgba(104,69,47,.18); padding-bottom:13px; }
+      .section-heading h2 { margin:0; font:500 25px Georgia,serif; letter-spacing:-.03em; }
+      .section-heading>span { color:var(--muted); font-size:13px; }
+      .task-list { display:grid; gap:10px; }
+      .task-card { position:relative; display:flex; align-items:center; gap:16px; min-height:84px; padding:17px 18px 17px 20px; overflow:hidden; border:1px solid var(--line); border-left:4px solid var(--wood); border-radius:4px 13px 13px 4px; background:rgba(255,253,248,.94); box-shadow:0 6px 18px rgba(69,45,29,.05); transition:transform .18s ease,box-shadow .18s ease; }
+      .task-card:hover { transform:translateY(-2px); box-shadow:0 12px 30px rgba(69,45,29,.12); }
+      .check { flex:0 0 auto; width:22px; height:22px; accent-color:var(--green); cursor:pointer; }
+      .task-copy { min-width:0; flex:1; }
+      .task-copy h3 { margin:0 0 9px; font-size:15px; font-weight:800; }
+      .task-copy p { display:flex; align-items:center; gap:10px; margin:0; color:var(--muted); font-size:12px; }
+      .tag { border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; }
+      .tag.coral { background:#ead5c7; color:#784632; }
+      .tag.mint { background:#d9e2d4; color:#35563d; }
+      .tag.blue { background:#d9dfde; color:#475e5c; }
+      .tag.violet { background:#ded7df; color:#5f4d62; }
+      .done h3 { color:#8c9995; text-decoration:line-through; }
+      .done { opacity:.72; }
+      .task-actions { display:flex; align-items:center; gap:3px; }
+      .edit-task,.delete-task { border:0; border-radius:8px; padding:7px 8px; background:transparent; color:#9aa4a1; cursor:pointer; font-size:11px; opacity:0; transition:opacity .18s ease,background .18s ease,color .18s ease; }
+      .task-card:hover .edit-task,.task-card:hover .delete-task,.edit-task:focus-visible,.delete-task:focus-visible { opacity:1; }
+      .edit-task:hover { background:#edf2e9; color:var(--green); }
+      .delete-task:hover { background:#fff0ec; color:#ad4c39; }
+      .loading-state,.empty-state { border:1px dashed #cdbb9f; border-radius:12px; padding:45px 20px; background:rgba(247,240,229,.58); color:var(--muted); text-align:center; }
+      .empty-state h3 { margin:0 0 8px; color:var(--ink); font:500 21px Georgia,serif; }
+      .empty-state p { margin:0; font-size:13px; }
+      footer { margin:48px auto 0; color:#766553; text-align:center; font:italic 13px Georgia,serif; }
+      .sr-only { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+      [hidden] { display:none !important; }
+      .login-dialog { width:min(92vw,430px); border:1px solid rgba(104,69,47,.28); border-radius:5px 22px 22px 22px; padding:0; color:var(--ink); background:rgba(255,253,248,.98); box-shadow:0 32px 90px rgba(42,29,20,.38); }
+      .login-dialog::backdrop { background:rgba(42,29,20,.58); backdrop-filter:blur(4px); }
+      .login-panel { padding:30px; }
+      .login-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:24px; }
+      .login-heading h2 { margin:0 0 7px; font:500 27px Georgia,"Times New Roman",serif; }
+      .login-heading p { margin:0; color:var(--muted); font-size:13px; line-height:1.55; }
+      .close-login { border:0; border-radius:50%; width:34px; height:34px; background:#f1e8da; color:var(--wood); cursor:pointer; font-size:20px; }
+      .login-field { display:grid; gap:7px; margin-top:14px; }
+      .login-field label { color:var(--wood); font-size:12px; font-weight:800; }
+      .login-field input { width:100%; border:1px solid #d8c9b4; border-radius:8px; padding:11px 12px; outline:0; background:#fffdf8; color:var(--ink); }
+      .login-field input:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(53,86,61,.12); }
+      .login-submit { width:100%; margin-top:18px; border:1px solid #294430; border-radius:8px; padding:12px; background:var(--green); color:white; cursor:pointer; font-weight:800; }
+      .login-message { min-height:18px; margin:10px 0 0; color:#9a4434; font-size:12px; }
+      .admin-dialog { width:min(94vw,760px); }
+      .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+      .admin-block { border:1px solid var(--line); border-radius:5px 16px 16px 16px; padding:18px; background:#f8f3ea; }
+      .admin-block h3 { margin:0 0 6px; font:500 20px Georgia,"Times New Roman",serif; }
+      .admin-block>p { margin:0 0 15px; color:var(--muted); font-size:12px; line-height:1.55; }
+      .admin-form { display:grid; gap:10px; }
+      .admin-form input,.admin-form select { width:100%; border:1px solid #d8c9b4; border-radius:8px; padding:10px 11px; outline:0; background:#fffdf8; color:var(--ink); }
+      .admin-form input:focus,.admin-form select:focus { border-color:var(--green); box-shadow:0 0 0 3px rgba(53,86,61,.12); }
+      .admin-form-row { display:grid; grid-template-columns:1fr 105px 105px; gap:8px; }
+      .admin-form-actions { display:flex; gap:8px; }
+      .admin-primary,.admin-secondary { border:1px solid #294430; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:12px; font-weight:800; }
+      .admin-primary { background:var(--green); color:white; }
+      .admin-secondary { background:#fffdf8; color:var(--green); }
+      .admin-message { min-height:18px; margin:0; color:#9a4434; font-size:12px; }
+      @media (max-width:820px) { .hero { grid-template-columns:1fr; gap:30px; } .hero-visual { min-height:260px; } }
+      @media (max-width:640px) {
+        .app-shell { padding:22px 16px 18px; } .topbar { margin-bottom:38px; } .brand { font-size:40px; }
+        .hero { grid-template-columns:1fr; align-items:flex-start; gap:26px; padding:0 2px 34px; } .hero-copy-block { padding:28px 24px; }
+        .hero-visual { min-height:220px; border-radius:20px 20px 20px 7px; } .progress-ring { width:78px; height:78px; }
+        .progress-ring::after { inset:7px; } .progress-ring span { font-size:21px; } .hero-copy { max-width:230px; line-height:1.55; }
+        .quick-add { padding-left:15px; } .quick-add button { padding-inline:17px; } .quick-add select,.quick-add .time-input { display:none; }
+        .list-toolbar { margin-bottom:32px; } .task-section { padding:18px 14px; } .filters { overflow-x:auto; }
+        .sync-status { display:none; } .edit-task,.delete-task { opacity:1; }
+        .admin-grid { grid-template-columns:1fr; }
+        .admin-form-row { grid-template-columns:1fr; }
       }
     </style>
   </head>
   <body>
-    <div class="shell">
-      <header class="topbar">
-        <h1 class="brand">Today's 하루</h1>
-        <div class="session">
-          <div class="session-copy" id="session-copy">
-            좋은 하루예요
-            <strong id="member-name"></strong>
+    <main class="app-shell">
+      <section class="todo-app" aria-label="? ? ?? ?">
+        <header class="topbar">
+          <a class="brand" href="#top" aria-label="?? ?"><span>Today's ??</span></a>
+          <div class="account">
+            <button class="preview-badge" id="login-open" type="button">???? ? ???</button>
+            <span class="sync-status" id="sync-status" hidden><i></i><span id="sync-label">???? ????</span></span>
+            <button class="admin-open" id="admin-open" type="button" hidden>??</button>
+            <button class="signout" id="logout" type="button" hidden>????</button>
+            <span class="profile" id="profile" aria-label="??? ???">?</span>
           </div>
-          <button class="secondary" id="logout" type="button" hidden>
-            로그아웃
-          </button>
+        </header>
+        <div class="hero" id="top">
+          <div class="hero-copy-block">
+            <p class="eyebrow" id="today-date"></p>
+            <h1 id="greeting">?? ?? ??? ???!</h1>
+            <p class="hero-copy">??? ?? ??? ??? ??? ????.</p>
+          </div>
+          <div class="hero-visual">
+            <img src="https://haru-todo-app.seotaiji0324.workers.dev/haru-library.png" alt="??? ?? ?? ??? ??, ?? ???" />
+            <div class="progress-ring" id="progress-ring" style="--progress:33.333%" aria-label="?? ? ? 3? ? 1? ??">
+              <span id="progress-value">1/3</span><small>??</small>
+            </div>
+          </div>
         </div>
-      </header>
-
-      <main>
-        <div class="hero" id="login-view">
-          <section class="card intro">
-            <p class="eyebrow">A quiet place for a focused day</p>
-            <h2>오늘을 차분하게 정리하세요.</h2>
-            <p>
-              도서관의 고요함처럼 해야 할 일을 한눈에 정돈하고, 중요한
-              하루에 집중하세요.
-            </p>
+        <form class="quick-add" id="task-form">
+          <label class="sr-only" for="new-task">? ? ?</label>
+          <input id="new-task" name="title" placeholder="? ? ?? ?????" autocomplete="off" maxlength="120" required />
+          <label class="sr-only" for="task-category">??</label>
+          <select id="task-category" name="category" aria-label="? ? ??"><option>??</option><option>??</option><option>??</option><option>??</option></select>
+          <label class="sr-only" for="task-time">??</label>
+          <input class="time-input" id="task-time" name="dueTime" type="time" aria-label="? ? ??" />
+          <button id="task-submit" type="submit">??</button>
+        </form>
+        <div class="list-toolbar">
+          <nav class="filters" aria-label="? ? ??">
+            <button class="active" data-filter="all" type="button">?? <span id="all-count">3</span></button>
+            <button data-filter="open" type="button">?? ? <span id="open-count">2</span></button>
+            <button data-filter="done" type="button">?? <span id="done-count">1</span></button>
+          </nav>
+        </div>
+        <p class="error-message" id="error-message" role="status" hidden></p>
+        <section class="task-section">
+          <div class="section-heading"><h2 id="section-title">??</h2><span id="remaining-label">2? ??</span></div>
+          <div class="task-list" id="task-list"></div>
+          <div class="empty-state" id="empty-state" hidden><h3 id="empty-title">??? ??? ???? ???</h3><p id="empty-copy">? ???? ? ? ?? ?????.</p></div>
+        </section>
+      </section>
+      <footer>???, ???. ??? ????.</footer>
+    </main>
+    <dialog class="login-dialog" id="login-dialog">
+      <form class="login-panel" id="login-form">
+        <div class="login-heading">
+          <div><h2>??? ???</h2><p>Cloudflare D1? ??? ???? ??????.</p></div>
+          <button class="close-login" id="login-close" type="button" aria-label="??? ? ??">?</button>
+        </div>
+        <div class="login-field"><label for="username">???</label><input id="username" name="username" value="seotaiji0324" autocomplete="username" required /></div>
+        <div class="login-field"><label for="password">????</label><input id="password" name="password" type="password" autocomplete="current-password" required /></div>
+        <button class="login-submit" type="submit">???</button>
+        <p class="login-message" id="login-message" aria-live="polite"></p>
+      </form>
+    </dialog>
+    <dialog class="login-dialog admin-dialog" id="admin-dialog">
+      <div class="login-panel">
+        <div class="login-heading">
+          <div><h2>??? ??</h2><p>??? ????? ??? ????? ?????.</p></div>
+          <button class="close-login" id="admin-close" type="button" aria-label="??? ?? ??">?</button>
+        </div>
+        <div class="admin-grid">
+          <section class="admin-block">
+            <h3>?? ??</h3>
+            <p id="edit-task-help">?? ??? ?? ??? ??? ???.</p>
+            <form class="admin-form" id="edit-task-form" hidden>
+              <input id="edit-task-id" type="hidden" />
+              <div class="admin-form-row">
+                <input id="edit-task-title" maxlength="120" placeholder="?? ??" required />
+                <select id="edit-task-category" aria-label="??? ?? ??"><option>??</option><option>??</option><option>??</option><option>??</option></select>
+                <input id="edit-task-time" type="time" aria-label="??? ?? ??" />
+              </div>
+              <div class="admin-form-actions">
+                <button class="admin-primary" type="submit">?? ??</button>
+                <button class="admin-secondary" id="cancel-task-edit" type="button">??</button>
+              </div>
+              <p class="admin-message" id="edit-task-message" aria-live="polite"></p>
+            </form>
           </section>
-
-          <section class="card login">
-            <h2>관리자 로그인</h2>
-            <p>Cloudflare D1에 저장된 일정을 안전하게 관리합니다.</p>
-            <form id="login-form">
-              <div class="field">
-                <label for="username">아이디</label>
-                <input
-                  id="username"
-                  name="username"
-                  value="seotaiji0324"
-                  autocomplete="username"
-                  required
-                />
-              </div>
-              <div class="field">
-                <label for="password">비밀번호</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autocomplete="current-password"
-                  required
-                />
-              </div>
-              <button class="primary" type="submit">로그인</button>
-              <p class="message" id="login-message" aria-live="polite"></p>
+          <section class="admin-block">
+            <h3>??? ???? ??</h3>
+            <p>?? ????? ??? ? 12? ??? ? ????? ?????.</p>
+            <form class="admin-form" id="password-form">
+              <input id="current-password" type="password" autocomplete="current-password" placeholder="?? ????" aria-label="?? ????" required />
+              <input id="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="? ???? (12? ??)" aria-label="? ????" required />
+              <input id="confirm-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" placeholder="? ???? ??" aria-label="? ???? ??" required />
+              <button class="admin-primary" type="submit">???? ??</button>
+              <p class="admin-message" id="password-message" aria-live="polite"></p>
             </form>
           </section>
         </div>
-
-        <section class="card workspace" id="workspace" hidden>
-          <div class="workspace-head">
-            <div>
-              <h2 class="tasks-title">오늘 할 일</h2>
-              <p class="summary" id="summary"></p>
-            </div>
-          </div>
-
-          <form class="task-form" id="task-form">
-            <input
-              id="task-title"
-              maxlength="120"
-              placeholder="새로운 할 일을 입력하세요"
-              aria-label="새로운 할 일"
-              required
-            />
-            <select id="task-category" aria-label="카테고리">
-              <option>개인</option>
-              <option>업무</option>
-              <option>건강</option>
-              <option>공부</option>
-            </select>
-            <input id="task-time" type="time" aria-label="예정 시간" />
-            <button class="primary" type="submit">일정 등록</button>
-          </form>
-          <p class="message" id="task-message" aria-live="polite"></p>
-
-          <section class="admin-panel" id="admin-panel" aria-label="관리자 도구" hidden>
-            <div class="admin-block">
-              <h3>일정 수정</h3>
-              <p id="edit-task-help">일정의 수정 버튼을 선택해 제목, 분류와 시간을 변경하세요.</p>
-              <form class="admin-form" id="edit-task-form" hidden>
-                <div class="admin-form-row">
-                  <input
-                    id="edit-task-title"
-                    maxlength="120"
-                    placeholder="일정명"
-                    aria-label="수정할 일정명"
-                    required
-                  />
-                  <select id="edit-task-category" aria-label="수정할 카테고리">
-                    <option>개인</option>
-                    <option>업무</option>
-                    <option>건강</option>
-                    <option>공부</option>
-                  </select>
-                  <input id="edit-task-time" type="time" aria-label="수정할 예정 시간" />
-                </div>
-                <div class="admin-form-actions">
-                  <button class="primary" type="submit">수정 저장</button>
-                  <button class="secondary" id="cancel-task-edit" type="button">취소</button>
-                </div>
-              </form>
-            </div>
-
-            <div class="admin-block">
-              <h3>관리자 비밀번호 변경</h3>
-              <p>현재 비밀번호를 확인한 뒤 12자 이상의 새 비밀번호로 변경합니다.</p>
-              <form class="admin-form" id="password-form">
-                <input
-                  id="current-password"
-                  type="password"
-                  autocomplete="current-password"
-                  placeholder="현재 비밀번호"
-                  aria-label="현재 비밀번호"
-                  required
-                />
-                <input
-                  id="new-password"
-                  type="password"
-                  autocomplete="new-password"
-                  minlength="12"
-                  maxlength="128"
-                  placeholder="새 비밀번호"
-                  aria-label="새 비밀번호"
-                  required
-                />
-                <input
-                  id="confirm-password"
-                  type="password"
-                  autocomplete="new-password"
-                  minlength="12"
-                  maxlength="128"
-                  placeholder="새 비밀번호 확인"
-                  aria-label="새 비밀번호 확인"
-                  required
-                />
-                <button class="primary" type="submit">비밀번호 변경</button>
-                <p class="message" id="password-message" aria-live="polite"></p>
-              </form>
-            </div>
-          </section>
-
-          <div class="filters" aria-label="일정 필터">
-            <button class="filter active" data-filter="all" type="button">전체</button>
-            <button class="filter" data-filter="open" type="button">할 일</button>
-            <button class="filter" data-filter="completed" type="button">완료</button>
-          </div>
-
-          <ul class="task-list" id="task-list"></ul>
-          <div class="empty" id="empty" hidden>표시할 일정이 없습니다.</div>
-        </section>
-      </main>
-    </div>
-
+      </div>
+    </dialog>
     <script>
-      const API_URL =
-        "https://haru-todo-app.seotaiji0324.workers.dev/api/tasks";
-      const PASSWORD_API_URL =
-        "https://haru-todo-app.seotaiji0324.workers.dev/api/member-password";
+      const API_URL = "https://haru-todo-app.seotaiji0324.workers.dev/api/tasks";
+      const PASSWORD_API_URL = "https://haru-todo-app.seotaiji0324.workers.dev/api/member-password";
       const SESSION_KEY = "haru-admin-basic";
+      const PREVIEW_TASKS = [
+        { id:"preview-1", title:"?? ??? ???", category:"??", dueTime:"11:00", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-2", title:"?? ????", category:"??", dueTime:"14:30", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-3", title:"?? ??", category:"??", dueTime:"07:00", completed:true, createdAt:new Date().toISOString() },
+      ];
+      const categoryClass = { ??:"coral", ??:"mint", ??:"blue", ??:"violet" };
       let credentials = sessionStorage.getItem(SESSION_KEY);
-      let tasks = [];
+      let tasks = PREVIEW_TASKS.map((task) => ({ ...task }));
       let member = null;
       let filter = "all";
-      let editingTaskId = null;
-
-      const loginView = document.querySelector("#login-view");
+      let saving = false;
+      const loginDialog = document.querySelector("#login-dialog");
       const loginForm = document.querySelector("#login-form");
       const loginMessage = document.querySelector("#login-message");
-      const workspace = document.querySelector("#workspace");
-      const logoutButton = document.querySelector("#logout");
-      const taskForm = document.querySelector("#task-form");
-      const taskMessage = document.querySelector("#task-message");
-      const taskList = document.querySelector("#task-list");
-      const empty = document.querySelector("#empty");
-      const adminPanel = document.querySelector("#admin-panel");
+      const adminDialog = document.querySelector("#admin-dialog");
       const editTaskForm = document.querySelector("#edit-task-form");
       const editTaskHelp = document.querySelector("#edit-task-help");
+      const editTaskMessage = document.querySelector("#edit-task-message");
       const passwordForm = document.querySelector("#password-form");
       const passwordMessage = document.querySelector("#password-message");
-
+      const taskForm = document.querySelector("#task-form");
+      const taskList = document.querySelector("#task-list");
+      const emptyState = document.querySelector("#empty-state");
+      const errorMessage = document.querySelector("#error-message");
+      function displayDate() { return new Intl.DateTimeFormat("ko-KR", { year:"numeric", month:"long", day:"numeric", weekday:"long", timeZone:"Asia/Seoul" }).format(new Date()); }
+      function displayTime(value) {
+        if (!value) return "?? ??";
+        const [hourValue, minute] = value.split(":").map(Number);
+        if (Number.isNaN(hourValue) || Number.isNaN(minute)) return value;
+        const period = hourValue < 12 ? "??" : "??";
+        const hour = hourValue % 12 || 12;
+        return `${period} ${hour}:${String(minute).padStart(2,"0")}`;
+      }
       function encodeCredentials(username, password) {
         const bytes = new TextEncoder().encode(`${username}:${password}`);
         let binary = "";
         for (const byte of bytes) binary += String.fromCharCode(byte);
         return btoa(binary);
       }
-
       async function api(method = "GET", body) {
-        const response = await fetch(API_URL, {
-          method,
-          headers: {
-            Authorization: `Basic ${credentials}`,
-            ...(body ? { "Content-Type": "application/json" } : {}),
-          },
-          body: body ? JSON.stringify(body) : undefined,
-        });
+        const response = await fetch(API_URL, { method, headers:{ Authorization:`Basic ${credentials}`, ...(body ? { "Content-Type":"application/json" } : {}) }, body:body ? JSON.stringify(body) : undefined, cache:"no-store" });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const error = new Error(data.error || "요청을 처리하지 못했습니다.");
-          error.status = response.status;
-          throw error;
-        }
+        if (!response.ok) { const error = new Error(data.error || "??? ???? ?????."); error.status = response.status; throw error; }
         return data;
       }
-
-      async function signIn(event) {
-        event.preventDefault();
-        loginMessage.textContent = "로그인 중입니다…";
-        const form = new FormData(loginForm);
-        credentials = encodeCredentials(
-          String(form.get("username")),
-          String(form.get("password")),
-        );
-
-        try {
-          await loadTasks();
-          sessionStorage.setItem(SESSION_KEY, credentials);
-          loginForm.reset();
-          document.querySelector("#username").value = "seotaiji0324";
-          showWorkspace();
-        } catch (error) {
-          credentials = null;
-          loginMessage.textContent =
-            error.status === 401
-              ? "아이디 또는 비밀번호가 올바르지 않습니다."
-              : error.message;
-        }
+      function showError(message = "") { errorMessage.textContent = message; errorMessage.hidden = !message; }
+      function displayName() { const value = member?.displayName || "???"; return value.includes("@") ? value.split("@")[0] : value.split(" ")[0]; }
+      function escapeHtml(value) { const element = document.createElement("span"); element.textContent = String(value); return element.innerHTML; }
+      function renderAccount() {
+        const isPreview = !member;
+        const name = displayName();
+        document.querySelector("#login-open").hidden = !isPreview;
+        document.querySelector("#sync-status").hidden = isPreview;
+        document.querySelector("#admin-open").hidden = member?.role !== "admin";
+        document.querySelector("#logout").hidden = isPreview;
+        document.querySelector("#sync-label").textContent = `${member?.role === "admin" ? "??? ? " : ""}???? ????`;
+        document.querySelector("#profile").textContent = name.slice(0,1).toUpperCase();
+        document.querySelector("#profile").setAttribute("aria-label", `${name} ???`);
+        document.querySelector("#greeting").innerHTML = isPreview ? "?? ?? ??? ???!" : `?? ????<span class="hero-name">${escapeHtml(name)}?.</span>`;
       }
-
-      function signOut() {
-        credentials = null;
-        member = null;
-        tasks = [];
-        editingTaskId = null;
-        sessionStorage.removeItem(SESSION_KEY);
-        workspace.hidden = true;
-        adminPanel.hidden = true;
-        editTaskForm.hidden = true;
-        editTaskHelp.hidden = false;
-        passwordForm.reset();
-        passwordMessage.textContent = "";
-        loginView.hidden = false;
-        logoutButton.hidden = true;
-        document.querySelector("#session-copy").style.display = "none";
-        loginMessage.textContent = "";
-        document.querySelector("#password").focus();
-      }
-
-      async function loadTasks() {
-        const data = await api();
-        tasks = data.tasks;
-        member = data.member;
-        renderTasks();
-      }
-
-      function showWorkspace() {
-        loginView.hidden = true;
-        workspace.hidden = false;
-        logoutButton.hidden = false;
-        document.querySelector("#session-copy").style.display = "block";
-        document.querySelector("#member-name").textContent =
-          `${member.displayName}님.`;
-        adminPanel.hidden = member.role !== "admin";
-        taskMessage.textContent = "";
-      }
-
       function renderTasks() {
-        const visible = tasks.filter((task) => {
-          if (filter === "open") return !task.completed;
-          if (filter === "completed") return task.completed;
-          return true;
-        });
-        const openCount = tasks.filter((task) => !task.completed).length;
-        document.querySelector("#summary").textContent =
-          `전체 ${tasks.length}개 · 남은 일정 ${openCount}개`;
-        taskList.replaceChildren(...visible.map(createTaskRow));
-        empty.hidden = visible.length > 0;
+        const visible = tasks.filter((task) => filter === "open" ? !task.completed : filter === "done" ? task.completed : true);
+        const completedCount = tasks.filter((task) => task.completed).length;
+        const openCount = tasks.length - completedCount;
+        const progress = tasks.length ? completedCount / tasks.length * 100 : 0;
+        document.querySelector("#all-count").textContent = tasks.length;
+        document.querySelector("#open-count").textContent = openCount;
+        document.querySelector("#done-count").textContent = completedCount;
+        document.querySelector("#progress-value").textContent = `${completedCount}/${tasks.length}`;
+        document.querySelector("#progress-ring").style.setProperty("--progress", `${progress}%`);
+        document.querySelector("#progress-ring").setAttribute("aria-label", `?? ? ? ${tasks.length}? ? ${completedCount}? ??`);
+        document.querySelector("#section-title").textContent = filter === "done" ? "??? ?" : filter === "open" ? "?? ?" : "??";
+        document.querySelector("#remaining-label").textContent = openCount ? `${openCount}? ??` : "?? ??";
+        document.querySelector("#empty-title").textContent = filter === "done" ? "?? ??? ?? ???" : "??? ??? ???? ???";
+        document.querySelector("#empty-copy").textContent = filter === "done" ? "?? ??? ??? ??? ???." : "? ???? ? ? ?? ?????.";
+        taskList.replaceChildren(...visible.map(createTaskCard));
+        emptyState.hidden = visible.length > 0;
       }
-
-      function createTaskRow(task) {
-        const row = document.createElement("li");
-        row.className = `task-row${task.completed ? " completed" : ""}`;
-
-        const main = document.createElement("div");
-        main.className = "task-main";
+      function createTaskCard(task) {
+        const card = document.createElement("article");
+        card.className = `task-card${task.completed ? " done" : ""}`;
         const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.checked = Boolean(task.completed);
-        checkbox.setAttribute("aria-label", `${task.title} 완료 여부`);
-        checkbox.addEventListener("change", () =>
-          updateTask(task.id, checkbox.checked),
-        );
-
-        const copy = document.createElement("div");
-        const title = document.createElement("div");
-        title.className = "task-title";
-        title.textContent = task.title;
-        const meta = document.createElement("div");
-        meta.className = "task-meta";
-        const category = document.createElement("span");
-        category.className = "chip";
-        category.textContent = task.category;
-        meta.append(category);
-        if (task.dueTime) {
-          const time = document.createElement("span");
-          time.textContent = task.dueTime;
-          meta.append(time);
-        }
-        copy.append(title, meta);
-        main.append(checkbox, copy);
-        row.append(main);
-
+        checkbox.className = "check"; checkbox.type = "checkbox"; checkbox.checked = Boolean(task.completed);
+        checkbox.setAttribute("aria-label", `${task.title}?(?) ${task.completed ? "?? ?" : "??"}?? ??`);
+        checkbox.addEventListener("change", () => toggleTask(task));
+        const copy = document.createElement("div"); copy.className = "task-copy";
+        const title = document.createElement("h3"); title.textContent = task.title;
+        const meta = document.createElement("p");
+        const category = document.createElement("span"); category.className = `tag ${categoryClass[task.category] || "mint"}`; category.textContent = task.category;
+        const time = document.createElement("span"); time.textContent = displayTime(task.dueTime);
+        meta.append(category,time); copy.append(title,meta); card.append(checkbox,copy);
         if (member?.role === "admin") {
-          const actions = document.createElement("div");
-          actions.className = "task-actions";
-          const edit = document.createElement("button");
-          edit.className = "edit";
-          edit.type = "button";
-          edit.textContent = "수정";
-          edit.setAttribute("aria-label", `${task.title} 수정`);
-          edit.addEventListener("click", () => startTaskEdit(task));
-          const remove = document.createElement("button");
-          remove.className = "danger";
-          remove.type = "button";
-          remove.textContent = "삭제";
-          remove.setAttribute("aria-label", `${task.title} 삭제`);
-          remove.addEventListener("click", () => deleteTask(task.id));
-          actions.append(edit, remove);
-          row.append(actions);
+          const actions = document.createElement("div"); actions.className = "task-actions";
+          const edit = document.createElement("button"); edit.className = "edit-task"; edit.type = "button"; edit.textContent = "??";
+          edit.setAttribute("aria-label", `${task.title} ??`); edit.addEventListener("click", () => beginTaskEdit(task));
+          const remove = document.createElement("button"); remove.className = "delete-task"; remove.type = "button"; remove.textContent = "??";
+          remove.setAttribute("aria-label", `${task.title} ??`); remove.addEventListener("click", () => deleteTask(task));
+          actions.append(edit,remove); card.append(actions);
         }
-        return row;
+        return card;
       }
-
+      async function loadTasks() { const data = await api(); tasks = data.tasks; member = data.member; showError(""); renderAccount(); renderTasks(); }
+      async function signIn(event) {
+        event.preventDefault(); loginMessage.textContent = "??? ?????";
+        const form = new FormData(loginForm); credentials = encodeCredentials(String(form.get("username")),String(form.get("password")));
+        try { await loadTasks(); sessionStorage.setItem(SESSION_KEY, credentials); loginMessage.textContent = ""; loginForm.reset(); document.querySelector("#username").value = "seotaiji0324"; loginDialog.close(); }
+        catch (error) { credentials = null; loginMessage.textContent = error.status === 401 ? "??? ?? ????? ???? ????." : error.message; }
+      }
+      function signOut() {
+        credentials = null; member = null; tasks = PREVIEW_TASKS.map((task) => ({ ...task })); filter = "all"; sessionStorage.removeItem(SESSION_KEY); showError("");
+        if (adminDialog.open) adminDialog.close();
+        cancelTaskEdit(); passwordForm.reset(); passwordMessage.textContent = "";
+        document.querySelectorAll(".filters button").forEach((button) => button.classList.toggle("active", button.dataset.filter === "all")); renderAccount(); renderTasks();
+      }
       async function addTask(event) {
-        event.preventDefault();
-        taskMessage.textContent = "등록 중입니다…";
+        event.preventDefault(); if (saving) return;
+        const form = new FormData(taskForm); const title = String(form.get("title")).trim(); if (!title) return;
+        saving = true; document.querySelector("#task-submit").textContent = "?? ?"; document.querySelector("#task-submit").disabled = true; showError("");
         try {
-          const result = await api("POST", {
-            title: document.querySelector("#task-title").value,
-            category: document.querySelector("#task-category").value,
-            dueTime: document.querySelector("#task-time").value || null,
-          });
-          tasks.unshift(result.task);
-          taskForm.reset();
-          taskMessage.textContent = "일정이 클라우드 DB에 등록되었습니다.";
-          renderTasks();
-        } catch (error) {
-          taskMessage.textContent = error.message;
-        }
+          if (!member) tasks.unshift({ id:crypto.randomUUID(), title, category:String(form.get("category")), dueTime:String(form.get("dueTime")) || null, completed:false, createdAt:new Date().toISOString() });
+          else { const result = await api("POST", { title, category:String(form.get("category")), dueTime:String(form.get("dueTime")) || null }); tasks.unshift(result.task); }
+          taskForm.reset(); filter = "all"; document.querySelectorAll(".filters button").forEach((button) => button.classList.toggle("active", button.dataset.filter === "all")); renderTasks();
+        } catch (error) { showError(error.message); }
+        finally { saving = false; document.querySelector("#task-submit").textContent = "??"; document.querySelector("#task-submit").disabled = false; }
       }
-
-      async function updateTask(id, completed) {
-        taskMessage.textContent = "";
-        try {
-          const result = await api("PATCH", { id, completed });
-          tasks = tasks.map((task) => (task.id === id ? result.task : task));
-          renderTasks();
-        } catch (error) {
-          taskMessage.textContent = error.message;
-          await loadTasks();
-        }
+      async function toggleTask(task) {
+        const previous = task.completed; task.completed = !previous; renderTasks(); if (!member) return;
+        try { const result = await api("PATCH", { id:task.id, completed:task.completed }); tasks = tasks.map((item) => item.id === task.id ? result.task : item); renderTasks(); }
+        catch (error) { task.completed = previous; renderTasks(); showError(error.message); }
       }
-
-      function startTaskEdit(task) {
-        editingTaskId = task.id;
+      function beginTaskEdit(task) {
+        if (member?.role !== "admin") return;
+        document.querySelector("#edit-task-id").value = task.id;
         document.querySelector("#edit-task-title").value = task.title;
         document.querySelector("#edit-task-category").value = task.category;
         document.querySelector("#edit-task-time").value = task.dueTime || "";
         editTaskHelp.hidden = true;
         editTaskForm.hidden = false;
+        editTaskMessage.textContent = "";
+        if (!adminDialog.open) adminDialog.showModal();
         document.querySelector("#edit-task-title").focus();
       }
-
       function cancelTaskEdit() {
-        editingTaskId = null;
         editTaskForm.reset();
         editTaskForm.hidden = true;
         editTaskHelp.hidden = false;
+        editTaskMessage.textContent = "";
       }
-
       async function saveTaskEdit(event) {
         event.preventDefault();
-        if (!editingTaskId) return;
-
-        taskMessage.textContent = "수정 중입니다…";
+        const id = document.querySelector("#edit-task-id").value;
+        const title = document.querySelector("#edit-task-title").value.trim();
+        editTaskMessage.textContent = "?? ??? ???? ?????";
         try {
           const result = await api("PATCH", {
-            id: editingTaskId,
-            title: document.querySelector("#edit-task-title").value,
-            category: document.querySelector("#edit-task-category").value,
-            dueTime: document.querySelector("#edit-task-time").value || null,
+            id,
+            title,
+            category:document.querySelector("#edit-task-category").value,
+            dueTime:document.querySelector("#edit-task-time").value || null,
           });
-          tasks = tasks.map((task) =>
-            task.id === editingTaskId ? result.task : task,
-          );
-          cancelTaskEdit();
-          taskMessage.textContent = "일정을 수정했습니다.";
+          tasks = tasks.map((task) => task.id === id ? result.task : task);
           renderTasks();
-        } catch (error) {
-          taskMessage.textContent = error.message;
-        }
+          cancelTaskEdit();
+        } catch (error) { editTaskMessage.textContent = error.message; }
       }
-
       async function changePassword(event) {
         event.preventDefault();
-        passwordMessage.textContent = "비밀번호를 변경하는 중입니다…";
         const currentPassword = document.querySelector("#current-password").value;
         const newPassword = document.querySelector("#new-password").value;
         const confirmPassword = document.querySelector("#confirm-password").value;
-
-        if (newPassword !== confirmPassword) {
-          passwordMessage.textContent = "새 비밀번호 확인이 일치하지 않습니다.";
-          return;
-        }
-
-        const nextCredentials = encodeCredentials(member.username, newPassword);
-        const currentCredentials = encodeCredentials(
-          member.username,
-          currentPassword,
-        );
-
+        if (newPassword !== confirmPassword) { passwordMessage.textContent = "? ???? ??? ???? ????."; return; }
+        passwordMessage.textContent = "????? ???? ?????";
+        const currentCredentials = encodeCredentials(member.username,currentPassword);
         try {
           const response = await fetch(PASSWORD_API_URL, {
-            method: "PATCH",
-            headers: {
-              Authorization: `Basic ${currentCredentials}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ newPassword }),
+            method:"PATCH",
+            headers:{ Authorization:`Basic ${currentCredentials}`, "Content-Type":"application/json" },
+            body:JSON.stringify({ newPassword }),
           });
           const data = await response.json().catch(() => ({}));
-          if (!response.ok) {
-            const error = new Error(
-              data.error || "비밀번호를 변경하지 못했습니다.",
-            );
-            error.status = response.status;
-            throw error;
-          }
-
-          credentials = nextCredentials;
+          if (!response.ok) throw new Error(data.error || "????? ???? ?????.");
+          credentials = encodeCredentials(member.username,newPassword);
           sessionStorage.setItem(SESSION_KEY, credentials);
           passwordForm.reset();
-          passwordMessage.textContent = "비밀번호가 변경되었습니다.";
-        } catch (error) {
-          passwordMessage.textContent = error.message;
-        }
+          passwordMessage.textContent = "????? ???????.";
+        } catch (error) { passwordMessage.textContent = error.message; }
       }
-
-      async function deleteTask(id) {
-        if (!window.confirm("이 일정을 삭제할까요?")) return;
-        taskMessage.textContent = "";
-        try {
-          await api("DELETE", { id });
-          tasks = tasks.filter((task) => task.id !== id);
-          taskMessage.textContent = "일정을 삭제했습니다.";
-          renderTasks();
-        } catch (error) {
-          taskMessage.textContent = error.message;
-        }
+      async function deleteTask(task) {
+        if (!member || member.role !== "admin" || !window.confirm("? ??? ??????")) return;
+        try { await api("DELETE", { id:task.id }); tasks = tasks.filter((item) => item.id !== task.id); renderTasks(); }
+        catch (error) { showError(error.message); }
       }
-
-      loginForm.addEventListener("submit", signIn);
-      logoutButton.addEventListener("click", signOut);
-      taskForm.addEventListener("submit", addTask);
-      editTaskForm.addEventListener("submit", saveTaskEdit);
-      document
-        .querySelector("#cancel-task-edit")
-        .addEventListener("click", cancelTaskEdit);
-      passwordForm.addEventListener("submit", changePassword);
-      document.querySelectorAll(".filter").forEach((button) => {
-        button.addEventListener("click", () => {
-          filter = button.dataset.filter;
-          document.querySelectorAll(".filter").forEach((item) =>
-            item.classList.toggle("active", item === button),
-          );
-          renderTasks();
-        });
-      });
-
-      if (credentials) {
-        loadTasks()
-          .then(showWorkspace)
-          .catch(signOut);
-      }
+      document.querySelector("#today-date").textContent = displayDate();
+      document.querySelector("#login-open").addEventListener("click", () => { loginMessage.textContent = ""; loginDialog.showModal(); document.querySelector("#password").focus(); });
+      document.querySelector("#login-close").addEventListener("click", () => loginDialog.close());
+      document.querySelector("#admin-open").addEventListener("click", () => adminDialog.showModal());
+      document.querySelector("#admin-close").addEventListener("click", () => adminDialog.close());
+      document.querySelector("#cancel-task-edit").addEventListener("click", cancelTaskEdit);
+      document.querySelector("#logout").addEventListener("click", signOut);
+      loginForm.addEventListener("submit", signIn); taskForm.addEventListener("submit", addTask);
+      editTaskForm.addEventListener("submit", saveTaskEdit); passwordForm.addEventListener("submit", changePassword);
+      document.querySelectorAll(".filters button").forEach((button) => button.addEventListener("click", () => { filter = button.dataset.filter; document.querySelectorAll(".filters button").forEach((item) => item.classList.toggle("active", item === button)); renderTasks(); }));
+      renderAccount(); renderTasks(); if (credentials) loadTasks().catch(() => signOut());
     </script>
   </body>
 </html>
