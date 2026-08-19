@@ -9,6 +9,7 @@ type Task = {
   id: string;
   title: string;
   category: string;
+  dueDate: string | null;
   dueTime: string | null;
   completed: boolean;
   createdAt: string;
@@ -17,14 +18,14 @@ type Filter = "all" | "open" | "done";
 type CategoryFilter = "all" | "개인" | "업무" | "건강" | "공부";
 
 const PREVIEW_TASKS: Task[] = [
-  { id: "preview-1", title: "OPIc 1일차 완성", category: "공부", dueTime: "11:00", completed: true, createdAt: new Date().toISOString() },
-  { id: "preview-2", title: "분석 신청", category: "업무", dueTime: "14:30", completed: false, createdAt: new Date().toISOString() },
-  { id: "preview-3", title: "관리 템플릿 문장 수정", category: "개인", dueTime: "16:00", completed: false, createdAt: new Date().toISOString() },
-  { id: "preview-4", title: "저녁 산책하기", category: "건강", dueTime: "20:00", completed: false, createdAt: new Date().toISOString() },
-  { id: "preview-5", title: "기숙사 신청", category: "개인", dueTime: "09:00", completed: false, createdAt: new Date().toISOString() },
-  { id: "preview-6", title: "연구실 미팅", category: "업무", dueTime: "13:00", completed: false, createdAt: new Date().toISOString() },
-  { id: "preview-7", title: "여행 준비 체크", category: "개인", dueTime: "18:30", completed: true, createdAt: new Date().toISOString() },
-  { id: "preview-8", title: "독서 30분", category: "공부", dueTime: "21:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-1", title: "OPIc 1일차 완성", category: "공부", dueDate: dateValue(), dueTime: "11:00", completed: true, createdAt: new Date().toISOString() },
+  { id: "preview-2", title: "분석 신청", category: "업무", dueDate: dateValue(), dueTime: "14:30", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-3", title: "관리 템플릿 문장 수정", category: "개인", dueDate: dateValue(1), dueTime: "16:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-4", title: "저녁 산책하기", category: "건강", dueDate: dateValue(2), dueTime: "20:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-5", title: "기숙사 신청", category: "개인", dueDate: dateValue(4), dueTime: "09:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-6", title: "연구실 미팅", category: "업무", dueDate: dateValue(6), dueTime: "13:00", completed: false, createdAt: new Date().toISOString() },
+  { id: "preview-7", title: "여행 준비 체크", category: "개인", dueDate: dateValue(8), dueTime: "18:30", completed: true, createdAt: new Date().toISOString() },
+  { id: "preview-8", title: "독서 30분", category: "공부", dueDate: dateValue(10), dueTime: "21:00", completed: false, createdAt: new Date().toISOString() },
 ];
 
 const CATEGORY_OPTIONS: Array<{ value: CategoryFilter; label: string; icon: string }> = [
@@ -50,18 +51,57 @@ function displayTime(value: string | null) {
   return `${period} ${hour}:${String(minute).padStart(2, "0")}`;
 }
 
+function dateValue(offsetDays = 0) {
+  const date = new Date(Date.now() + offsetDays * 86_400_000);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Seoul",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function displayTaskSchedule(task: Task) {
+  const date = task.dueDate
+    ? new Intl.DateTimeFormat("ko-KR", {
+        month: "long",
+        day: "numeric",
+        weekday: "short",
+        timeZone: "Asia/Seoul",
+      }).format(new Date(`${task.dueDate}T00:00:00+09:00`))
+    : "날짜 미정";
+  return `${date} · ${displayTime(task.dueTime)}`;
+}
+
 function displayDate() {
   return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long", timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+function displayYear() {
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    timeZone: "Asia/Seoul",
+  }).format(new Date());
 }
 
 function monthLabel(date: Date) {
   return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", timeZone: "Asia/Seoul" }).format(date);
 }
 
-function taskCalendarDay(task: Task, index: number, daysInMonth: number) {
-  const source = new Date(task.createdAt);
-  const base = Number.isNaN(source.getTime()) ? new Date().getDate() : source.getDate();
-  return ((base - 1 + index * 4) % daysInMonth) + 1;
+function taskCalendarDay(task: Task, month: Date) {
+  const match = task.dueDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const [, year, monthValue, day] = match;
+  if (
+    Number(year) !== month.getFullYear() ||
+    Number(monthValue) !== month.getMonth() + 1
+  ) {
+    return null;
+  }
+  return Number(day);
 }
 
 async function responseError(response: Response, fallback: string) {
@@ -90,7 +130,7 @@ function PlanGroup({ label, tasks, member, onToggle, onRemove }: {
             <input className="check" type="checkbox" checked={task.completed} onChange={() => onToggle(task)} aria-label={`${task.title}을(를) ${task.completed ? "진행 중" : "완료"}으로 표시`} />
             <div className="plan-task-copy">
               <strong>{task.title}</strong>
-              <small>{displayTime(task.dueTime)}</small>
+              <small>{displayTaskSchedule(task)}</small>
             </div>
             <span className={`status-tag ${categoryClass[task.category] ?? "mint"}`}>{task.category}</span>
             {member?.role === "admin" && (
@@ -112,6 +152,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("개인");
+  const [dueDate, setDueDate] = useState(dateValue);
   const [dueTime, setDueTime] = useState("");
   const [loading, setLoading] = useState(!isPreview);
   const [saving, setSaving] = useState(false);
@@ -156,31 +197,35 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
     const day = index - firstWeekday + 1;
     return day > 0 && day <= daysInMonth ? day : null;
   });
-  const tasksByDay = categoryTasks.reduce<Record<number, Task[]>>((result, task, index) => {
-    const day = taskCalendarDay(task, index, daysInMonth);
-    result[day] = [...(result[day] ?? []), task];
+  const tasksByDay = categoryTasks.reduce<Record<number, Task[]>>((result, task) => {
+    const day = taskCalendarDay(task, calendarDate);
+    if (day) result[day] = [...(result[day] ?? []), task];
     return result;
   }, {});
   const openTasks = visibleTasks.filter((task) => !task.completed);
+  const todayTasks = openTasks.filter((task) => task.dueDate === dateValue());
+  const upcomingTasks = openTasks.filter((task) => task.dueDate !== dateValue());
   const completedTasks = visibleTasks.filter((task) => task.completed);
 
   async function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanTitle = title.trim();
-    if (!cleanTitle || saving) return;
-    const draft: Task = { id: crypto.randomUUID(), title: cleanTitle, category, dueTime: dueTime || null, completed: false, createdAt: new Date().toISOString() };
+    if (!cleanTitle || !dueDate || saving) return;
+    const draft: Task = { id: crypto.randomUUID(), title: cleanTitle, category, dueDate, dueTime: dueTime || null, completed: false, createdAt: new Date().toISOString() };
     setSaving(true);
     setError("");
     try {
       if (isPreview) {
         setTasks((current) => [draft, ...current]);
       } else {
-        const response = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: cleanTitle, category, dueTime: dueTime || null }) });
+        const response = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: cleanTitle, category, dueDate, dueTime: dueTime || null }) });
         if (!response.ok) throw new Error(await responseError(response, "할 일을 저장하지 못했어요."));
         const payload = (await response.json()) as { task: Task };
         setTasks((current) => [payload.task, ...current]);
       }
       setTitle("");
+      setCalendarDate(new Date(`${dueDate}T00:00:00`));
+      setDueDate(dateValue());
       setDueTime("");
       setFilter("all");
     } catch (cause) {
@@ -223,7 +268,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
             <Image className="calendar-mark" src="/dashboard-calendar-mark.png" alt="분홍색 탁상 달력 일러스트" width={72} height={72} priority />
             <div>
               <p className="header-kicker">TODAY&apos;S HARU · {displayDate()}</p>
-              <h1>대학생을 위한 2026 관리 템플릿</h1>
+              <h1>{displayYear()} 일정 관리</h1>
             </div>
           </div>
           <div className="account">
@@ -260,7 +305,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
           <section className="calendar-panel" aria-label="월간 일정">
             <div className="panel-heading">
               <div>
-                <p className="panel-eyebrow">2026 전체 일정</p>
+                <p className="panel-eyebrow">{displayYear()} 전체 일정</p>
                 <div className="view-tabs" aria-label="일정 보기 방식">
                   <button className="active" type="button"><Icon name="calendar_month" /> Calendar</button>
                   <button type="button"><Icon name="table_rows" /> sch</button>
@@ -307,17 +352,19 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
               <div className="composer-options">
                 <label className="sr-only" htmlFor="task-category">분류</label>
                 <select id="task-category" value={category} onChange={(event) => setCategory(event.target.value)} aria-label="할 일 분류"><option>개인</option><option>업무</option><option>건강</option><option>공부</option></select>
+                <label className="sr-only" htmlFor="task-date">연월일</label>
+                <input className="date-input" id="task-date" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} aria-label="할 일 연월일" required />
                 <label className="sr-only" htmlFor="task-time">시간</label>
                 <input className="time-input" id="task-time" type="time" value={dueTime} onChange={(event) => setDueTime(event.target.value)} aria-label="할 일 시간" />
-                <button className="add-button" type="submit" disabled={!title.trim() || saving}><Icon name={saving ? "hourglass_top" : "arrow_upward"} /><span className="sr-only">{saving ? "저장 중" : "추가"}</span></button>
+                <button className="add-button" type="submit" disabled={!title.trim() || !dueDate || saving}><Icon name={saving ? "hourglass_top" : "arrow_upward"} /><span className="sr-only">{saving ? "저장 중" : "추가"}</span></button>
               </div>
             </form>
             {loading ? (
               <div className="loading-state" role="status">할 일을 불러오는 중이에요…</div>
             ) : visibleTasks.length ? (
               <div className="plan-list">
-                <PlanGroup label="오늘" tasks={openTasks.slice(0, 3)} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
-                <PlanGroup label="주간" tasks={openTasks.slice(3)} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
+                <PlanGroup label="오늘" tasks={todayTasks} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
+                <PlanGroup label="예정" tasks={upcomingTasks} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
                 <PlanGroup label="완료" tasks={completedTasks} member={member} onToggle={(task) => void toggleTask(task)} onRemove={(task) => void removeTask(task)} />
               </div>
             ) : (

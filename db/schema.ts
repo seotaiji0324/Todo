@@ -37,6 +37,7 @@ export const tasks = sqliteTable(
     ownerId: text("owner_id").notNull(),
     title: text("title").notNull(),
     category: text("category").notNull().default("개인"),
+    dueDate: text("due_date"),
     dueTime: text("due_time"),
     completed: integer("completed", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -44,6 +45,7 @@ export const tasks = sqliteTable(
   },
   (table) => [
     index("idx_tasks_owner_completed").on(table.ownerId, table.completed),
+    index("idx_tasks_owner_due_date").on(table.ownerId, table.dueDate),
     index("idx_tasks_owner_created").on(table.ownerId, table.createdAt),
   ],
 );

@@ -380,8 +380,8 @@ h1 {
   font-size: 8px;
 }
 .composer-main input::placeholder { color: #aaa6a2; }
-.composer-options { display: flex; align-items: center; gap: 4px; margin: 7px 0 0 18px; }
-.composer-options select, .composer-options .time-input {
+.composer-options { display: grid; grid-template-columns: 54px minmax(0, 1fr) 22px; align-items: center; gap: 4px; margin: 7px 0 0 18px; }
+.composer-options select, .composer-options .date-input, .composer-options .time-input {
   min-width: 0;
   border: 1px solid #e4e1de;
   border-radius: 4px;
@@ -391,12 +391,15 @@ h1 {
   font-size: 7px;
 }
 .composer-options select { width: 58px; }
-.composer-options .time-input { width: 72px; }
+.composer-options .date-input { width: 100%; }
+.composer-options .time-input { grid-column: 1 / 3; width: 100%; }
 .add-button {
   display: grid;
   width: 22px;
   height: 22px;
-  margin-left: auto;
+  grid-column: 3;
+  grid-row: 1 / 3;
+  margin-left: 0;
   place-items: center;
   border: 0;
   border-radius: 5px;

@@ -7,6 +7,7 @@ import { getDb } from "../../../db";
 import { tasks } from "../../../db/schema";
 
 const CATEGORIES = new Set(["개인", "업무", "건강", "공부"]);
+const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 const ALLOWED_ORIGINS = new Set([
   "https://seotaiji0324.github.io",
   "http://localhost:3002",
@@ -28,6 +29,17 @@ function forbidden() {
   return Response.json(
     { error: "등록된 멤버만 이용할 수 있습니다." },
     { status: 403 },
+  );
+}
+
+function isValidDate(value: unknown): value is string {
+  if (typeof value !== "string" || !DATE_PATTERN.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
   );
 }
 
@@ -135,6 +147,7 @@ async function handlePost(request: Request): Promise<Response> {
     const payload = (await request.json()) as {
       title?: unknown;
       category?: unknown;
+      dueDate?: unknown;
       dueTime?: unknown;
     };
     const title = typeof payload.title === "string" ? payload.title.trim() : "";
@@ -142,6 +155,7 @@ async function handlePost(request: Request): Promise<Response> {
       typeof payload.category === "string" && CATEGORIES.has(payload.category)
         ? payload.category
         : "개인";
+    const dueDate = isValidDate(payload.dueDate) ? payload.dueDate : null;
     const dueTime =
       typeof payload.dueTime === "string" &&
       /^([01]\d|2[0-3]):[0-5]\d$/.test(payload.dueTime)
@@ -155,6 +169,13 @@ async function handlePost(request: Request): Promise<Response> {
       );
     }
 
+    if (!dueDate) {
+      return Response.json(
+        { error: "일정의 연월일을 선택해 주세요." },
+        { status: 400 },
+      );
+    }
+
     const [task] = await getDb()
       .insert(tasks)
       .values({
@@ -162,6 +183,7 @@ async function handlePost(request: Request): Promise<Response> {
         ownerId: identity.member.id,
         title,
         category,
+        dueDate,
         dueTime,
       })
       .returning();
@@ -182,6 +204,7 @@ async function handlePatch(request: Request): Promise<Response> {
       completed?: unknown;
       title?: unknown;
       category?: unknown;
+      dueDate?: unknown;
       dueTime?: unknown;
     };
     if (typeof payload.id !== "string") {
@@ -192,10 +215,14 @@ async function handlePatch(request: Request): Promise<Response> {
       completed?: boolean;
       title?: string;
       category?: string;
+      dueDate?: string;
       dueTime?: string | null;
     } = {};
     const editsSchedule =
-      "title" in payload || "category" in payload || "dueTime" in payload;
+      "title" in payload ||
+      "category" in payload ||
+      "dueDate" in payload ||
+      "dueTime" in payload;
 
     if (editsSchedule && identity.member.role !== "admin") {
       return Response.json(
@@ -228,9 +255,22 @@ async function handlePatch(request: Request): Promise<Response> {
         typeof payload.category !== "string" ||
         !CATEGORIES.has(payload.category)
       ) {
-        return Response.json({ error: "잘못된 분류입니다." }, { status: 400 });
+        return Response.json(
+          { error: "잘못된 분류입니다." },
+          { status: 400 },
+        );
       }
       updates.category = payload.category;
+    }
+
+    if ("dueDate" in payload) {
+      if (!isValidDate(payload.dueDate)) {
+        return Response.json(
+          { error: "올바른 연월일을 선택해 주세요." },
+          { status: 400 },
+        );
+      }
+      updates.dueDate = payload.dueDate;
     }
 
     if ("dueTime" in payload) {
@@ -239,13 +279,19 @@ async function handlePatch(request: Request): Promise<Response> {
         (typeof payload.dueTime !== "string" ||
           !/^([01]\d|2[0-3]):[0-5]\d$/.test(payload.dueTime))
       ) {
-        return Response.json({ error: "잘못된 시간입니다." }, { status: 400 });
+        return Response.json(
+          { error: "잘못된 시간입니다." },
+          { status: 400 },
+        );
       }
       updates.dueTime = payload.dueTime;
     }
 
     if (Object.keys(updates).length === 0) {
-      return Response.json({ error: "수정할 내용이 없습니다." }, { status: 400 });
+      return Response.json(
+        { error: "수정할 내용이 없습니다." },
+        { status: 400 },
+      );
     }
 
     const [task] = await getDb()

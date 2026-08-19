@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="월간 캘린더와 Daily Plan으로 오늘의 일정을 한눈에 관리하세요." />
-    <title>Today's 하루 — 2026 관리 템플릿</title>
+    <title>일정 관리</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&display=swap" rel="stylesheet" />
@@ -18,7 +18,7 @@
             <img class="calendar-mark" src="./dashboard-calendar-mark.png" width="72" height="72" alt="분홍색 탁상 달력 일러스트" />
             <div>
               <p class="header-kicker">TODAY'S HARU · <span id="today-date"></span></p>
-              <h1>대학생을 위한 2026 관리 템플릿</h1>
+              <h1><span id="current-year"></span> 일정 관리</h1>
             </div>
           </div>
           <div class="account">
@@ -52,7 +52,7 @@
           <section class="calendar-panel" aria-label="월간 일정">
             <div class="panel-heading">
               <div>
-                <p class="panel-eyebrow">2026 전체 일정</p>
+                <p class="panel-eyebrow"><span id="overview-year"></span> 전체 일정</p>
                 <div class="view-tabs" aria-label="일정 보기 방식">
                   <button class="active" type="button"><span class="material-symbols-rounded" aria-hidden="true">calendar_month</span>Calendar</button>
                   <button type="button"><span class="material-symbols-rounded" aria-hidden="true">table_rows</span>sch</button>
@@ -88,6 +88,8 @@
               <div class="composer-options">
                 <label class="sr-only" for="task-category">분류</label>
                 <select id="task-category" name="category" aria-label="할 일 분류"><option>개인</option><option>업무</option><option>건강</option><option>공부</option></select>
+                <label class="sr-only" for="task-date">연월일</label>
+                <input class="date-input" id="task-date" name="dueDate" type="date" aria-label="할 일 연월일" required />
                 <label class="sr-only" for="task-time">시간</label>
                 <input class="time-input" id="task-time" name="dueTime" type="time" aria-label="할 일 시간" />
                 <button class="add-button" id="task-submit" type="submit"><span class="material-symbols-rounded" aria-hidden="true">arrow_upward</span><span class="sr-only">추가</span></button>
@@ -129,6 +131,7 @@
               <input id="edit-task-id" type="hidden" />
               <input id="edit-task-title" maxlength="120" placeholder="일정 제목" required />
               <select id="edit-task-category" aria-label="수정할 일정 분류"><option>개인</option><option>업무</option><option>건강</option><option>공부</option></select>
+              <input id="edit-task-date" type="date" aria-label="수정할 일정 연월일" required />
               <input id="edit-task-time" type="time" aria-label="수정할 일정 시간" />
               <div class="admin-form-actions"><button class="admin-primary" type="submit">수정 저장</button><button class="admin-secondary" id="cancel-task-edit" type="button">취소</button></div>
               <p class="admin-message" id="edit-task-message" aria-live="polite"></p>
@@ -154,14 +157,14 @@
       const PASSWORD_API_URL = "https://haru-todo-app.seotaiji0324.workers.dev/api/member-password";
       const SESSION_KEY = "haru-admin-basic";
       const PREVIEW_TASKS = [
-        { id:"preview-1", title:"OPIc 1일차 완성", category:"공부", dueTime:"11:00", completed:true, createdAt:new Date().toISOString() },
-        { id:"preview-2", title:"분석 신청", category:"업무", dueTime:"14:30", completed:false, createdAt:new Date().toISOString() },
-        { id:"preview-3", title:"관리 템플릿 문장 수정", category:"개인", dueTime:"16:00", completed:false, createdAt:new Date().toISOString() },
-        { id:"preview-4", title:"저녁 산책하기", category:"건강", dueTime:"20:00", completed:false, createdAt:new Date().toISOString() },
-        { id:"preview-5", title:"기숙사 신청", category:"개인", dueTime:"09:00", completed:false, createdAt:new Date().toISOString() },
-        { id:"preview-6", title:"연구실 미팅", category:"업무", dueTime:"13:00", completed:false, createdAt:new Date().toISOString() },
-        { id:"preview-7", title:"여행 준비 체크", category:"개인", dueTime:"18:30", completed:true, createdAt:new Date().toISOString() },
-        { id:"preview-8", title:"독서 30분", category:"공부", dueTime:"21:00", completed:false, createdAt:new Date().toISOString() }
+        { id:"preview-1", title:"OPIc 1일차 완성", category:"공부", dueDate:dateValue(), dueTime:"11:00", completed:true, createdAt:new Date().toISOString() },
+        { id:"preview-2", title:"분석 신청", category:"업무", dueDate:dateValue(), dueTime:"14:30", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-3", title:"관리 템플릿 문장 수정", category:"개인", dueDate:dateValue(1), dueTime:"16:00", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-4", title:"저녁 산책하기", category:"건강", dueDate:dateValue(2), dueTime:"20:00", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-5", title:"기숙사 신청", category:"개인", dueDate:dateValue(4), dueTime:"09:00", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-6", title:"연구실 미팅", category:"업무", dueDate:dateValue(6), dueTime:"13:00", completed:false, createdAt:new Date().toISOString() },
+        { id:"preview-7", title:"여행 준비 체크", category:"개인", dueDate:dateValue(8), dueTime:"18:30", completed:true, createdAt:new Date().toISOString() },
+        { id:"preview-8", title:"독서 30분", category:"공부", dueDate:dateValue(10), dueTime:"21:00", completed:false, createdAt:new Date().toISOString() }
       ];
       const categoryClass = { "업무":"coral", "개인":"mint", "건강":"blue", "공부":"violet" };
       let credentials = sessionStorage.getItem(SESSION_KEY);
@@ -171,6 +174,8 @@
       let categoryFilter = "all";
       let calendarDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       let saving = false;
+      const CURRENT_YEAR = new Intl.DateTimeFormat("en-US", { year:"numeric", timeZone:"Asia/Seoul" }).format(new Date());
+      const CURRENT_DATE = dateValue();
 
       const loginDialog = document.querySelector("#login-dialog");
       const adminDialog = document.querySelector("#admin-dialog");
@@ -205,6 +210,18 @@
         if (parts.some(Number.isNaN)) return value;
         const period = parts[0] < 12 ? "오전" : "오후";
         return period + " " + (parts[0] % 12 || 12) + ":" + String(parts[1]).padStart(2, "0");
+      }
+      function dateValue(offsetDays = 0) {
+        const date = new Date(Date.now() + offsetDays * 86400000);
+        const parts = new Intl.DateTimeFormat("en-US", { year:"numeric", month:"2-digit", day:"2-digit", timeZone:"Asia/Seoul" }).formatToParts(date);
+        const part = (type) => parts.find((item) => item.type === type)?.value || "";
+        return part("year") + "-" + part("month") + "-" + part("day");
+      }
+      function displayTaskSchedule(task) {
+        const date = task.dueDate
+          ? new Intl.DateTimeFormat("ko-KR", { month:"long", day:"numeric", weekday:"short", timeZone:"Asia/Seoul" }).format(new Date(task.dueDate + "T00:00:00+09:00"))
+          : "날짜 미정";
+        return date + " · " + displayTime(task.dueTime);
       }
       function encodeCredentials(username, password) {
         const bytes = new TextEncoder().encode(username + ":" + password);
@@ -241,10 +258,10 @@
       function visibleTasks() {
         return filteredByCategory().filter((task) => filter === "open" ? !task.completed : filter === "done" ? task.completed : true);
       }
-      function taskCalendarDay(task, index, daysInMonth) {
-        const source = new Date(task.createdAt);
-        const base = Number.isNaN(source.getTime()) ? new Date().getDate() : source.getDate();
-        return ((base - 1 + index * 4) % daysInMonth) + 1;
+      function taskCalendarDay(task, month) {
+        const match = task.dueDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match || Number(match[1]) !== month.getFullYear() || Number(match[2]) !== month.getMonth() + 1) return null;
+        return Number(match[3]);
       }
       function renderAccount() {
         const isPreview = !member;
@@ -277,9 +294,9 @@
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const sourceTasks = filteredByCategory();
         const tasksByDay = {};
-        sourceTasks.forEach((task, index) => {
-          const day = taskCalendarDay(task, index, daysInMonth);
-          (tasksByDay[day] ||= []).push(task);
+        sourceTasks.forEach((task) => {
+          const day = taskCalendarDay(task, calendarDate);
+          if (day) (tasksByDay[day] ||= []).push(task);
         });
         document.querySelector("#month-label").textContent = monthLabel(calendarDate);
         const cells = Array.from({ length:42 }, (_, index) => {
@@ -321,7 +338,7 @@
         const title = document.createElement("strong");
         title.textContent = task.title;
         const time = document.createElement("small");
-        time.textContent = displayTime(task.dueTime);
+        time.textContent = displayTaskSchedule(task);
         copy.append(title, time);
         const tag = document.createElement("span");
         tag.className = "status-tag " + (categoryClass[task.category] || "mint");
@@ -366,7 +383,9 @@
         const visible = visibleTasks();
         const open = visible.filter((task) => !task.completed);
         const done = visible.filter((task) => task.completed);
-        const groups = [planGroup("오늘", open.slice(0, 3)), planGroup("주간", open.slice(3)), planGroup("완료", done)].filter(Boolean);
+        const today = open.filter((task) => task.dueDate === CURRENT_DATE);
+        const upcoming = open.filter((task) => task.dueDate !== CURRENT_DATE);
+        const groups = [planGroup("오늘", today), planGroup("예정", upcoming), planGroup("완료", done)].filter(Boolean);
         planList.replaceChildren(...groups);
         emptyState.hidden = visible.length > 0;
         renderCounts();
@@ -422,12 +441,15 @@
         showError("");
         try {
           if (!member) {
-            tasks.unshift({ id:crypto.randomUUID(), title, category:String(form.get("category")), dueTime:String(form.get("dueTime")) || null, completed:false, createdAt:new Date().toISOString() });
+            tasks.unshift({ id:crypto.randomUUID(), title, category:String(form.get("category")), dueDate:String(form.get("dueDate")), dueTime:String(form.get("dueTime")) || null, completed:false, createdAt:new Date().toISOString() });
           } else {
-            const result = await api("POST", { title, category:String(form.get("category")), dueTime:String(form.get("dueTime")) || null });
+            const result = await api("POST", { title, category:String(form.get("category")), dueDate:String(form.get("dueDate")), dueTime:String(form.get("dueTime")) || null });
             tasks.unshift(result.task);
           }
+          const selectedDate = String(form.get("dueDate"));
+          calendarDate = new Date(selectedDate + "T00:00:00");
           taskForm.reset();
+          document.querySelector("#task-date").value = CURRENT_DATE;
           filter = "all";
           document.querySelectorAll(".filters button[data-filter]").forEach((button) => button.classList.toggle("active", button.dataset.filter === "all"));
           renderPlan();
@@ -458,6 +480,7 @@
         document.querySelector("#edit-task-id").value = task.id;
         document.querySelector("#edit-task-title").value = task.title;
         document.querySelector("#edit-task-category").value = task.category;
+        document.querySelector("#edit-task-date").value = task.dueDate || CURRENT_DATE;
         document.querySelector("#edit-task-time").value = task.dueTime || "";
         editTaskHelp.hidden = true;
         editTaskForm.hidden = false;
@@ -477,7 +500,7 @@
         const title = document.querySelector("#edit-task-title").value.trim();
         editTaskMessage.textContent = "수정 내용을 저장하는 중입니다…";
         try {
-          const result = await api("PATCH", { id, title, category:document.querySelector("#edit-task-category").value, dueTime:document.querySelector("#edit-task-time").value || null });
+          const result = await api("PATCH", { id, title, category:document.querySelector("#edit-task-category").value, dueDate:document.querySelector("#edit-task-date").value, dueTime:document.querySelector("#edit-task-time").value || null });
           tasks = tasks.map((task) => task.id === id ? result.task : task);
           renderPlan();
           cancelTaskEdit();
@@ -518,7 +541,11 @@
         }
       }
 
+      document.title = CURRENT_YEAR + " 일정 관리";
+      document.querySelector("#current-year").textContent = CURRENT_YEAR;
+      document.querySelector("#overview-year").textContent = CURRENT_YEAR;
       document.querySelector("#today-date").textContent = displayDate();
+      document.querySelector("#task-date").value = CURRENT_DATE;
       document.querySelector("#login-open").addEventListener("click", () => { loginMessage.textContent = ""; loginDialog.showModal(); document.querySelector("#password").focus(); });
       document.querySelector("#login-close").addEventListener("click", () => loginDialog.close());
       document.querySelector("#admin-open").addEventListener("click", () => adminDialog.showModal());

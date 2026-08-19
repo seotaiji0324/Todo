@@ -22,17 +22,19 @@ async function render(path = "/") {
   );
 }
 
-test("renders the complete 2026 dashboard task experience", async () => {
+test("renders the complete current-year dashboard task experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
   assert.match(html, /<html lang="ko">/);
-  assert.match(html, /<title>Today's 하루 — 2026 관리 템플릿<\/title>/);
+  assert.match(html, /<title>\d{4} 일정 관리<\/title>/);
   assert.match(html, /새 일정을 입력하세요/);
+  assert.match(html, /id="task-date"[^>]*type="date"/);
+  assert.match(html, /할 일 연월일/);
   assert.match(html, /OPIc 1일차 완성/);
-  assert.match(html, /대학생을 위한 2026 관리 템플릿/);
+  assert.match(html, /\d{4} 일정 관리/);
   assert.match(html, /미리보기 · 로그인/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
