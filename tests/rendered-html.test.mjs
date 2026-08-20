@@ -36,7 +36,8 @@ test("renders the complete current-month dashboard task experience", async () =>
   assert.match(html, /할 일 연월일/);
   assert.match(html, /OPIc 1일차 완성/);
   assert.match(html, /\d{4}년 \d{1,2}월 일정 관리/);
-  assert.match(html, /로그인 확인 중/);
+  assert.match(html, /Cloudflare 멤버 로그인/);
+  assert.match(html, /members 테이블에 등록된 계정/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
 

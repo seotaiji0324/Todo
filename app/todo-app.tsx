@@ -165,37 +165,12 @@ export function TodoApp({ initialMember }: { initialMember: AppMember | null }) 
   const [loading, setLoading] = useState(!isPreview);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(initialMember === null);
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginMessage, setLoginMessage] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-
-  useEffect(() => {
-    let active = true;
-    async function restoreSession() {
-      try {
-        const response = await fetch("/api/member-session", { cache: "no-store" });
-        if (!active) return;
-        if (response.ok) {
-          const payload = (await response.json()) as { member: AppMember };
-          setMember(payload.member);
-          setTasks([]);
-          setLoginOpen(false);
-        } else if (response.status === 401) {
-          setLoginOpen(true);
-        }
-      } catch {
-        if (active) setLoginMessage("로그인 상태를 확인하지 못했습니다.");
-      } finally {
-        if (active) setCheckingSession(false);
-      }
-    }
-    void restoreSession();
-    return () => { active = false; };
-  }, []);
 
   useEffect(() => {
     if (isPreview) return;
@@ -391,9 +366,7 @@ export function TodoApp({ initialMember }: { initialMember: AppMember | null }) 
             </div>
           </div>
           <div className="account">
-            {checkingSession ? (
-              <span className="sync-status"><Icon name="sync" />로그인 확인 중</span>
-            ) : isPreview ? (
+            {isPreview ? (
               <button className="preview-badge" type="button" onClick={() => setLoginOpen(true)}>
                 <Icon name="login" /> Cloudflare 멤버 로그인
               </button>
