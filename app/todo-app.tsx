@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-type User = { displayName: string; email: string };
 type AppMember = { username: string; displayName: string; role: string };
 type Task = {
   id: string;
@@ -153,8 +152,9 @@ function PlanGroup({ label, tasks, member, onToggle, onRemove }: {
   );
 }
 
-export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPreview: boolean }) {
-  const isPreview = user === null;
+export function TodoApp({ initialMember }: { initialMember: AppMember | null }) {
+  const [member, setMember] = useState<AppMember | null>(initialMember);
+  const isPreview = member === null;
   const [tasks, setTasks] = useState<Task[]>(isPreview ? PREVIEW_TASKS : []);
   const [filter, setFilter] = useState<Filter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
@@ -165,15 +165,54 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
   const [loading, setLoading] = useState(!isPreview);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [member, setMember] = useState<AppMember | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginMessage, setLoginMessage] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [calendarDate, setCalendarDate] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+
+  useEffect(() => {
+    let active = true;
+    async function restoreSession() {
+      try {
+        const response = await fetch("/api/member-session", { cache: "no-store" });
+        if (!active) return;
+        if (response.ok) {
+          const payload = (await response.json()) as { member: AppMember };
+          setMember(payload.member);
+          setTasks([]);
+          setLoginOpen(false);
+        } else if (response.status === 401) {
+          setLoginOpen(true);
+        }
+      } catch {
+        if (active) setLoginMessage("로그인 상태를 확인하지 못했습니다.");
+      } finally {
+        if (active) setCheckingSession(false);
+      }
+    }
+    void restoreSession();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (isPreview) return;
     let active = true;
     async function loadTasks() {
       try {
+        setLoading(true);
         const response = await fetch("/api/tasks", { cache: "no-store" });
+        if (response.status === 401) {
+          if (active) {
+            setMember(null);
+            setTasks(PREVIEW_TASKS);
+            setLoginOpen(true);
+            setError("로그인 시간이 만료되었습니다. 다시 로그인해 주세요.");
+          }
+          return;
+        }
         if (!response.ok) throw new Error(await responseError(response, "할 일을 불러오지 못했어요."));
         const payload = (await response.json()) as { tasks: Task[]; member: AppMember };
         if (!active) return;
@@ -196,7 +235,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
   const categoryTasks = useMemo(() => tasks.filter((task) => categoryFilter === "all" || task.category === categoryFilter), [categoryFilter, tasks]);
   const visibleTasks = useMemo(() => categoryTasks.filter((task) => filter === "open" ? !task.completed : filter === "done" ? task.completed : true), [categoryTasks, filter]);
-  const accountName = member?.displayName ?? user?.displayName;
+  const accountName = member?.displayName;
   const displayName = accountName?.includes("@") ? accountName.split("@")[0] : accountName?.split(" ")[0] ?? "관리자";
   const initial = displayName.slice(0, 1).toUpperCase();
   const daysInMonth = new Date(calendarDate.getFullYear(), calendarDate.getMonth() + 1, 0).getDate();
@@ -215,6 +254,75 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
   const upcomingTasks = openTasks.filter((task) => task.dueDate !== dateValue());
   const completedTasks = visibleTasks.filter((task) => task.completed);
 
+  function handleExpiredSession(response: Response) {
+    if (response.status !== 401) return false;
+    setMember(null);
+    setTasks(PREVIEW_TASKS);
+    setLoginOpen(true);
+    setError("로그인 시간이 만료되었습니다. 다시 로그인해 주세요.");
+    return true;
+  }
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loggingIn) return;
+    setLoggingIn(true);
+    setLoginMessage("로그인 중입니다…");
+
+    try {
+      const response = await fetch("/api/member-session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          username: loginUsername,
+          password: loginPassword,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(
+          await responseError(response, "아이디 또는 비밀번호를 확인해 주세요."),
+        );
+      }
+      const payload = (await response.json()) as { member: AppMember };
+      setMember(payload.member);
+      setTasks([]);
+      setLoginPassword("");
+      setLoginMessage("");
+      setError("");
+      setLoginOpen(false);
+    } catch (cause) {
+      setLoginMessage(
+        cause instanceof Error
+          ? cause.message
+          : "로그인 처리 중 문제가 발생했습니다.",
+      );
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  async function signOut() {
+    try {
+      const response = await fetch("/api/member-session", {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        throw new Error("로그아웃 처리 중 문제가 발생했습니다.");
+      }
+      setMember(null);
+      setTasks(PREVIEW_TASKS);
+      setError("");
+      setLoginMessage("로그아웃되었습니다.");
+      setLoginOpen(true);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "로그아웃 처리 중 문제가 발생했습니다.",
+      );
+    }
+  }
+
   async function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const cleanTitle = title.trim();
@@ -227,6 +335,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
         setTasks((current) => [draft, ...current]);
       } else {
         const response = await fetch("/api/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: cleanTitle, category, dueDate, dueTime: dueTime || null }) });
+        if (handleExpiredSession(response)) return;
         if (!response.ok) throw new Error(await responseError(response, "할 일을 저장하지 못했어요."));
         const payload = (await response.json()) as { task: Task };
         setTasks((current) => [payload.task, ...current]);
@@ -248,6 +357,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
     setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: nextCompleted } : item));
     if (isPreview) return;
     const response = await fetch("/api/tasks", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: task.id, completed: nextCompleted }) });
+    if (handleExpiredSession(response)) return;
     if (!response.ok) {
       setTasks((current) => current.map((item) => item.id === task.id ? { ...item, completed: task.completed } : item));
       setError("완료 상태를 바꾸지 못했어요.");
@@ -258,6 +368,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
     setTasks((current) => current.filter((item) => item.id !== task.id));
     if (isPreview) return;
     const response = await fetch("/api/tasks", { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: task.id }) });
+    if (handleExpiredSession(response)) return;
     if (!response.ok) {
       setTasks((current) => [task, ...current]);
       setError("할 일을 삭제하지 못했어요.");
@@ -280,10 +391,12 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
             </div>
           </div>
           <div className="account">
-            {isPreview ? (
-              <a className="preview-badge" href={isLocalPreview ? "/api/dev-login" : "/signin-with-chatgpt?return_to=%2F"}>
-                <Icon name="login" /> 미리보기 · 로그인
-              </a>
+            {checkingSession ? (
+              <span className="sync-status"><Icon name="sync" />로그인 확인 중</span>
+            ) : isPreview ? (
+              <button className="preview-badge" type="button" onClick={() => setLoginOpen(true)}>
+                <Icon name="login" /> Cloudflare 멤버 로그인
+              </button>
             ) : (
               <span className="sync-status"><Icon name="cloud_done" />{member?.role === "admin" ? "관리자 · " : ""}동기화됨</span>
             )}
@@ -346,7 +459,7 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
           <aside className="daily-panel" aria-label="일일 계획">
             <div className="daily-heading">
               <div><p>Daily Plan</p><strong>{isPreview ? "좋은 하루 되세요 화이팅!" : `좋은 하루예요 ${displayName}님.`}</strong></div>
-              {!isPreview && <a className="signout" href={isLocalPreview ? "/api/dev-logout" : "/signout-with-chatgpt?return_to=%2F"}>로그아웃</a>}
+              {!isPreview && <button className="signout" type="button" onClick={() => void signOut()}>로그아웃</button>}
             </div>
             <nav className="filters" aria-label="할 일 필터">
               <button className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")} type="button"><Icon name="adjust" /> 전체 {tasks.length}</button>
@@ -380,6 +493,29 @@ export function TodoApp({ user, isLocalPreview }: { user: User | null; isLocalPr
             )}
           </aside>
         </div>
+
+        {loginOpen && (
+          <div className="login-overlay">
+            <section className="member-login" role="dialog" aria-modal="true" aria-labelledby="member-login-title">
+              <div className="member-login-heading">
+                <div>
+                  <p>Cloudflare D1</p>
+                  <h2 id="member-login-title">멤버 로그인</h2>
+                </div>
+                <button className="icon-button" type="button" onClick={() => setLoginOpen(false)} aria-label="로그인 창 닫기"><Icon name="close" /></button>
+              </div>
+              <p className="member-login-description">members 테이블에 등록된 계정으로 로그인해 주세요.</p>
+              <form className="member-login-form" onSubmit={signIn}>
+                <label htmlFor="login-username">아이디</label>
+                <input id="login-username" name="username" value={loginUsername} onChange={(event) => setLoginUsername(event.target.value)} autoComplete="username" maxLength={64} required />
+                <label htmlFor="login-password">비밀번호</label>
+                <input id="login-password" name="password" type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} autoComplete="current-password" maxLength={128} required />
+                <button className="member-login-submit" type="submit" disabled={loggingIn}>{loggingIn ? "로그인 중…" : "로그인"}</button>
+                <p className="login-message" role="status">{loginMessage}</p>
+              </form>
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );

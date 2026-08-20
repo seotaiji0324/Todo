@@ -1,7 +1,6 @@
-import { eq } from "drizzle-orm";
-import { getDb } from "./index";
+import { findMemberByUsername } from "./member-store";
 import { verifyPassword } from "./password-crypto";
-import { members, type Member } from "./schema";
+import type { Member } from "./schema";
 
 export async function authorizeBasicMember(
   request: Request,
@@ -11,11 +10,7 @@ export async function authorizeBasicMember(
   );
   if (!credentials) return null;
 
-  const [member] = await getDb()
-    .select()
-    .from(members)
-    .where(eq(members.username, credentials.username))
-    .limit(1);
+  const member = await findMemberByUsername(credentials.username);
 
   if (
     !member ||

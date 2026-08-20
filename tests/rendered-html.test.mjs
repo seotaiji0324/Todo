@@ -36,8 +36,28 @@ test("renders the complete current-month dashboard task experience", async () =>
   assert.match(html, /할 일 연월일/);
   assert.match(html, /OPIc 1일차 완성/);
   assert.match(html, /\d{4}년 \d{1,2}월 일정 관리/);
-  assert.match(html, /미리보기 · 로그인/);
+  assert.match(html, /로그인 확인 중/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
+});
+
+test("member login uses an HttpOnly server session instead of browser password storage", async () => {
+  const sessionRoute = await readFile(
+    new URL("../app/api/member-session/route.ts", import.meta.url),
+    "utf8",
+  );
+  const sessionStore = await readFile(
+    new URL("../db/member-session.ts", import.meta.url),
+    "utf8",
+  );
+  const appSource = await readFile(
+    new URL("../app/todo-app.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(sessionRoute, /findMemberByUsername/);
+  assert.match(sessionStore, /HttpOnly/);
+  assert.match(sessionStore, /SameSite=Lax/);
+  assert.doesNotMatch(appSource, /sessionStorage|localStorage/);
 });
 
 test("static Pages calendar renders every task registered for a date", async () => {

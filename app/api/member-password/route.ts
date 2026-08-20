@@ -1,8 +1,6 @@
-import { eq, sql } from "drizzle-orm";
 import { authorizeBasicMember } from "../../../db/basic-auth";
-import { getDb } from "../../../db";
+import { updateMemberPassword } from "../../../db/member-store";
 import { createPasswordCredentials } from "../../../db/password-crypto";
-import { members } from "../../../db/schema";
 
 const ALLOWED_ORIGINS = new Set([
   "https://seotaiji0324.github.io",
@@ -72,15 +70,11 @@ export async function PATCH(request: Request) {
 
     const { passwordHash, passwordSalt } =
       await createPasswordCredentials(newPassword);
-    const [updatedMember] = await getDb()
-      .update(members)
-      .set({
-        passwordHash,
-        passwordSalt,
-        updatedAt: sql`CURRENT_TIMESTAMP`,
-      })
-      .where(eq(members.id, member.id))
-      .returning({ id: members.id });
+    const updatedMember = await updateMemberPassword(
+      member.id,
+      passwordHash,
+      passwordSalt,
+    );
 
     if (!updatedMember) {
       return withCors(

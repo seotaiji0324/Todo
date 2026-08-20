@@ -4,9 +4,8 @@ import {
   queryExternalCloudflareD1,
   usesExternalCloudflareD1,
 } from "../../../db/cloudflare-d1-http";
-import { authorizeMember } from "../../../db/members";
+import { authorizeSessionMember } from "../../../db/member-session";
 import type { Member } from "../../../db/schema";
-import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { tasks } from "../../../db/schema";
 
@@ -53,15 +52,8 @@ function mapExternalTask(row: ExternalTaskRow) {
 
 function unauthorized() {
   return Response.json(
-    { error: "??? ?? ????? ??? ???." },
+    { error: "로그인이 필요합니다." },
     { status: 401 },
-  );
-}
-
-function forbidden() {
-  return Response.json(
-    { error: "??? ??? ??? ? ????." },
-    { status: 403 },
   );
 }
 
@@ -84,13 +76,10 @@ async function authorizeRequest(
     return { member: basicMember, legacyOwnerId: null };
   }
 
-  const user = await getChatGPTUser();
-  if (!user) return { response: unauthorized() };
+  const member = await authorizeSessionMember(request);
+  if (!member) return { response: unauthorized() };
 
-  const member = await authorizeMember(user);
-  if (!member) return { response: forbidden() };
-
-  return { member, legacyOwnerId: user.userId };
+  return { member, legacyOwnerId: null };
 }
 
 function databaseError(error: unknown) {
